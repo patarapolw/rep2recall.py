@@ -22,24 +22,25 @@ def r_editor():
         })
 
     elif request.method == "PUT":
-        if r["create"]:
+        if r.get("create"):
             c_id = db.insert_many([r["create"]])[0]
             return jsonify({
                 "id": c_id
             })
 
-        if r["update"]:
-            db.update(r["id"], r["update"])
-        else:
-            db.update(r["id"], {r["fieldName"]: r["fieldData"]})
+        if r.get("update"):
+            if r.get("ids"):
+                db.update_many(r["ids"], r["update"])
+            else:
+                db.update(r["id"], r["update"])
 
         return Response(status=201)
 
     elif request.method == "DELETE":
-        db.conn.execute("""
-        DELETE FROM card
-        WHERE id = ?
-        """, (r["id"],))
+        if r.get("ids"):
+            db.delete_many(r["ids"])
+        else:
+            db.delete(r["id"])
 
         return Response(status=201)
 
@@ -51,8 +52,9 @@ def r_editor_find_one():
     c = tuple(filter(mongo_filter({"id": request.json["id"]}), Config.DB.get_all()))[0]
 
     if c["front"].startswith("@md5\n"):
-        c["front"] = c["tFront"]
-        c["back"] = c["tBack"]
+        data = c.get("data", dict())
+        c["front"] = anki_mustache(c["tFront"], data)
+        c["back"] = anki_mustache(c["tBack"], data)
 
     return jsonify(c)
 
@@ -63,8 +65,8 @@ def r_editor_insert_many():
 
 
 def _editor_entry_post_process(c: dict) -> dict:
-    data = c.get("data", dict())
     if c["front"].startswith("@md5\n"):
+        data = c.get("data", dict())
         c["front"] = anki_mustache(c["tFront"], data)
         c["back"] = anki_mustache(c["tBack"], data)
 

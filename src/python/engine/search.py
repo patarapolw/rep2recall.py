@@ -62,7 +62,7 @@ def parse_query(s: str) -> dict:
 
                 if o == ":":
                     if isinstance(v, str) or k in IS_STRING:
-                        v = {"$substr": str(v)}
+                        v = {"$regex": re.escape(str(v))}
                 elif o == "~":
                     v = {"$regex": str(v)}
                 elif o == ">=":
@@ -100,8 +100,9 @@ def mongo_filter(cond: Union[dict, str]) -> Callable[[dict], bool]:
             else:
                 if isinstance(v, dict) and any(k0[0] == "$" for k0 in v.keys()):
                     return _mongo_compare(item.get(k), v)
-                elif isinstance(item[k], list) and v not in item[k]:
-                    return False
+                elif isinstance(item[k], list):
+                    if v not in item[k]:
+                        return False
                 elif item[k] != v:
                     return False
 
@@ -141,7 +142,7 @@ def sorter(sort_by: str, desc: bool) -> Callable[[Any], bool]:
         else:
             return -1
 
-    return functools.cmp_to_key(lambda x, y: pre_cmp(x[sort_by], y[sort_by]) if desc else -pre_cmp(x[sort_by], y[sort_by]))
+    return functools.cmp_to_key(lambda x, y: -pre_cmp(x[sort_by], y[sort_by]) if desc else pre_cmp(x[sort_by], y[sort_by]))
 
 
 def shlex_split(s: str, split_token: Set[str] = None, keep_splitter: bool = False) -> List[str]:
@@ -172,6 +173,8 @@ def shlex_split(s: str, split_token: Set[str] = None, keep_splitter: bool = Fals
 
             continue
 
+        new_token += c
+
     if new_token:
         tokens.append(new_token)
 
@@ -193,9 +196,9 @@ def _mongo_compare(v, v_obj: dict) -> bool:
                     return str(v0) in str(v)
             elif op == "$startswith":
                 if isinstance(v, list):
-                    return any(str(v0).startswith(str(b)) for b in v)
+                    return any(str(b).startswith(str(v0)) for b in v)
                 else:
-                    return str(v0).startswith(str(v))
+                    return str(v).startswith(str(v0))
             elif op == "$gte":
                 return v >= v0
             elif op == "$gt":

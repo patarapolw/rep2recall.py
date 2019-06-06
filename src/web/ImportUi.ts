@@ -6,17 +6,17 @@ import io from "socket.io-client";
 
 @Component({
     template: h(".container.mt-3", [
-        h("h3", "Choose *.apkg file to import"),
+        h("h3", "Import file"),
         h(".input-group", [
             h(".custom-file", [
                 h("input.custom-file-input", {
                     type: "file",
-                    accept: ".apkg",
+                    accept: ".apkg, .r2r",
                     attrs: {
                         "v-on:change": "onImportFileChanged"
                     }
                 }),
-                h("label.custom-file-label", "{{ importFile ? importFile.name : 'Choose file to upload' }}")
+                h("label.custom-file-label", "{{ importFile ? importFile.name : 'Please file to upload (*.apkg, *.r2r)' }}")
             ]),
             h(".input-group-append", [
                 h("button.btn.btn-outline-success.input-group-text", {
@@ -75,7 +75,7 @@ export default class ImportUi extends Vue {
 
     private onImportButtonClicked() {
         const formData = new FormData();
-        formData.append("apkg", this.importFile!);
+        formData.append("file", this.importFile!);
         (this.$refs.uploadModal as any).show();
 
         this.progress = {
@@ -96,11 +96,17 @@ export default class ImportUi extends Vue {
                 max: 0
             });
             const { id } = JSON.parse(xhr.responseText);
-
             const ws = io(`http://localhost:${ServerPort}`);
+            let started = false;
 
             ws.on("connect", () => {
-                ws.send(id);
+                if (!started) {
+                    ws.send({
+                        id,
+                        type: /\.[^.]+$/.exec(this.importFile!.name)![0]
+                    });
+                    started = true;
+                }
             });
 
             ws.on("message", (msg: any) => {
@@ -114,7 +120,7 @@ export default class ImportUi extends Vue {
             });
         };
 
-        xhr.open("POST", `http://localhost:${ServerPort}/api/io/anki/import`);
+        xhr.open("POST", `http://localhost:${ServerPort}/api/io/import`);
         xhr.send(formData);
     }
 

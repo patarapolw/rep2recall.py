@@ -94,13 +94,11 @@ def r_quiz_build():
 
     if r.get("due"):
         and_cond.append({"nextReview": {"$lte": str(datetime.now() + parse_timedelta(r["due"]))}})
-    else:
+    elif r.get("type") != "all":
         and_cond.append({"$or": [
             {"nextReview": {"$exists": False}},
             {"nextReview": {"$lte": str(datetime.now())}}
         ]})
-
-    print(and_cond)
 
     db = Config.DB
     all_items = [c["id"] for c in filter(mongo_filter({"$and": and_cond}), db.get_all())]

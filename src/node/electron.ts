@@ -22,7 +22,7 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, "index.html"));
 
     const openExternalLinksInOSBrowser = (event: any, url: string) => {
-        if (url.match(/.*localhost.*/gi) === null && (url.startsWith("http:") || url.startsWith("https:"))) {
+        if (url.indexOf("localhost") !== -1 || url.indexOf("export") !== -1) {
             event.preventDefault();
             shell.openExternal(url);
         }

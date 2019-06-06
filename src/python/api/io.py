@@ -1,39 +1,64 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_file
 from flask_socketio import send
 from uuid import uuid4
-import json
+from slugify import slugify
+from gevent import sleep
 
 from ..shared import Config
 from ..engine.anki import Anki
+from ..engine.db import Db
+from ..engine.search import mongo_filter
 
 api_io = Blueprint("io", __name__, url_prefix="/api/io")
-ws_io = Blueprint("ws_io", __name__, url_prefix="/api/io")
 
-ANKI_FILENAME = dict()
+FILE_ID_TO_NAME = dict()
 
 
-@api_io.route("/anki/import", methods=["POST"])
-def r_anki_import():
-    f = request.files["apkg"]
+@api_io.route("/import", methods=["POST"])
+def r_import():
+    f = request.files["file"]
     f_id = str(uuid4())
-    ANKI_FILENAME[f_id] = f.filename
-    f.save(str(Config.UPLOAD_FOLDER.joinpath(f"{f_id}.apkg")))
+    FILE_ID_TO_NAME[f_id] = f.filename
+    f.save(str(Config.UPLOAD_FOLDER.joinpath(f_id)))
 
     return jsonify({
         "id": f_id
     })
 
 
-def r_anki_progress(f_id):
+def r_import_progress(msg):
     try:
-        filename = ANKI_FILENAME[f_id]
+        filename = FILE_ID_TO_NAME[msg["id"]]
+        if msg["type"] == ".apkg":
+            anki = Anki(str(Config.UPLOAD_FOLDER.joinpath(msg["id"])), filename,
+                        lambda x: (send(x), sleep(1)))
+            anki.export(Config.DB)
+        elif msg["type"] == ".r2r":
+            import_db = Db(str(Config.UPLOAD_FOLDER.joinpath(msg["id"])))
+            Config.DB.insert_many(import_db.get_all())
+        else:
+            raise ValueError(f"Invalid file type {msg['type']}")
 
-        anki = Anki(str(Config.UPLOAD_FOLDER.joinpath(f"{f_id}.apkg")), filename,
-                    lambda x: send(x))
-        anki.export(Config.DB)
+        send(dict())
     except Exception as e:
         send({
             "error": str(e)
         })
         raise
 
+
+@api_io.route("/export")
+def r_export():
+    deck = request.args.get("deck")
+    filename = str(Config.UPLOAD_FOLDER.joinpath(str(uuid4())))
+    new_file = Db(str(Config.UPLOAD_FOLDER.joinpath(filename)))
+    db = Config.DB
+
+    new_file.insert_many(list(filter(mongo_filter({"$or": [
+        {"deck": deck},
+        {"deck": {"$startswith": f"{deck}/"}}
+    ]}), db.get_all())))
+
+    new_file.close()
+
+    return send_file(filename, attachment_filename=f"{slugify(deck)}.r2r", as_attachment=True, cache_timeout=-1)

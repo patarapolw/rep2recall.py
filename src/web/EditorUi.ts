@@ -5,6 +5,7 @@ import { makeCamelSpaced, fetchJSON } from "./util";
 import DatetimeNullable from "./editor/DatetimeNullable";
 import EntryEditor from "./editor/EntryEditor";
 import swal from "sweetalert";
+import toastr from "toastr";
 
 @Component({
     components: {DatetimeNullable, EntryEditor},
@@ -89,7 +90,12 @@ import swal from "sweetalert";
                             h("input", {type: "checkbox", attrs: {
                                 "v-on:click": "onCheckboxClicked($event)",
                                 "ref": "checkbox.main",
-                                ":checked": "checkedIds.size > 0"
+                                ":checked": "checkedIds.size > 0",
+                                "v-show": "!allCardsSelected"
+                            }}),
+                            h("i.fas.fa-check-double", {attrs: {
+                                "v-if": "allCardsSelected",
+                                "v-on:click": "allCardsSelected = false; checkedIds.clear()"
                             }})
                         ])
                     ]),
@@ -188,6 +194,10 @@ import swal from "sweetalert";
             "title": "Edit entry",
             ":entry-id": "Array.from(checkedIds)[0]",
             "v-on:ok": "onEntrySaved"
+        }}),
+        h("img.page-loader", {attrs: {
+            "src": "Spinner-1s-200px.svg",
+            "v-if": "isLoading"
         }})
     ]).outerHTML
 })
@@ -204,6 +214,8 @@ export default class EditorUi extends Vue {
     private data: any[] = [];
     private canFetch = true;
     private checkedIds: Set<number> = new Set();
+    private allCardsSelected = false;
+    private isLoading = false;
 
     private readonly colWidths = {
         checkbox: 50,
@@ -249,6 +261,7 @@ export default class EditorUi extends Vue {
     }
 
     private async onEntrySaved(data: any) {
+        this.isLoading = true;
         if (data.id) {
             await fetchJSON("/api/editor/", {id: data.id, update: data}, "PUT");
         } else {
@@ -270,6 +283,7 @@ export default class EditorUi extends Vue {
         })
 
         if (r) {
+            this.isLoading = true;
             await fetchJSON("/api/editor/", {ids: Array.from(this.checkedIds)}, "DELETE");
             this.fetchData();
         }
@@ -284,6 +298,7 @@ export default class EditorUi extends Vue {
         })
 
         if (deck) {
+            this.isLoading = true;
             await fetchJSON("/api/editor/", {
                 ids: Array.from(this.checkedIds),
                 update: {deck}
@@ -316,7 +331,26 @@ export default class EditorUi extends Vue {
                 this.data.forEach((d) => {
                     this.checkedIds.add(d.id);
                 });
+
+                if (this.count > this.limit) {
+                    toastr.warning("Do you want to select all cards?", "", {
+                        closeButton: true,
+                        positionClass: "toast-top-center",
+                        closeHtml: h("button", "Select all").outerHTML,
+                        onCloseClick: async () => {
+                            this.isLoading = true;
+                            const {ids} = await fetchJSON("/api/quiz/", {q: this.q, type: "all"});
+                            this.checkedIds = new Set(ids);
+                            this.allCardsSelected = true;
+                            this.isLoading = false;
+                        }
+                    }).css({
+                        width: "400px",
+                        "max-width": "400px"
+                    });
+                }
             } else {
+                this.allCardsSelected = false;
                 this.checkedIds.clear();
             }
         }
@@ -354,12 +388,15 @@ export default class EditorUi extends Vue {
             this.offset = 0;
         }
 
+        this.isLoading = true;
+
         const r = await fetchJSON("/api/editor/", {q: this.q, offset: this.offset, limit: this.limit, 
             sortBy: this.sortBy, desc: this.desc});
 
         this.data = r.data;
         this.count = r.count;
 
+        this.allCardsSelected = false;
         const checkboxMain = this.$refs["checkbox.main"] as HTMLInputElement;
         checkboxMain.indeterminate = false;
         this.checkedIds.clear();
@@ -375,5 +412,6 @@ export default class EditorUi extends Vue {
             }
         }
         this.hasSource = (this.extraCols.length > 0);
+        this.isLoading = false;
     }
 }

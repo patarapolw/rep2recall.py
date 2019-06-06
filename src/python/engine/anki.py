@@ -103,15 +103,23 @@ class Anki:
             "text": "Writing to database"
         })
 
-        source_id = db.conn.execute("""
+        source_h = hashlib.md5(Path(self.file_path).read_bytes()).hexdigest()
+
+        db.conn.execute("""
         INSERT INTO source (name, h, created)
         VALUES (?, ?, ?)
+        ON CONFLICT DO NOTHING
         """, (
             self.filename,
-            hashlib.md5(Path(self.file_path).read_bytes()).hexdigest(),
+            source_h,
             str(datetime.now())
-        )).lastrowid
+        ))
         db.conn.commit()
+
+        source_id = db.conn.execute("""
+        SELECT id FROM source
+        WHERE h = ?
+        """, (source_h,)).fetchone()[0]
 
         media_name_to_id = dict()
         media_json = json.loads(Path(self.dir).joinpath("media").read_text())
@@ -214,8 +222,6 @@ class Anki:
                 "tag": [x for x in n["tags"].split(" ") if x],
                 "sourceId": source_id
             }])
-
-        self.cb({})
 
     @staticmethod
     def _convert_link(s: str, media_name_to_id: dict) -> str:

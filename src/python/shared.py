@@ -10,7 +10,7 @@ from .engine.db import Db
 class Config:
     PORT = os.getenv("PORT", 34972)
 
-    COLLECTION = os.getenv("COLLECTION", os.path.join(appdirs.user_data_dir("rep2recall"), "user.db"))
+    COLLECTION = os.getenv("COLLECTION", os.path.join(appdirs.user_data_dir("rep2recall-py"), "user.db"))
     Path(COLLECTION).parent.mkdir(parents=True, exist_ok=True)
 
     DIR = Path(COLLECTION).parent.resolve()

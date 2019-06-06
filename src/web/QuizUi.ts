@@ -201,12 +201,13 @@ export default class QuizUi extends Vue {
         })
 
         if (r) {
-            const {ids} = await fetchJSON("/api/quiz/", {deck, q: this.q, due: null})
+            const {ids} = await fetchJSON("/api/quiz/", {deck, q: this.q, type: "all"})
             await fetchJSON("/api/editor/", {ids}, "DELETE");
             await swal({
                 text: `Deleted ${deck}`,
                 icon: "success"
             });
+            this.$forceUpdate();
             return true;
         }
 

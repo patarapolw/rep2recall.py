@@ -46,7 +46,7 @@ const app = new Vue({
             }),
             h("a.fab.fa-github.tooltip-enabled.nav-icon", {
                 title: "About",
-                href: "https://github.com/patarapolw/rep2recall-kt"
+                href: "https://github.com/patarapolw/rep2recall-py"
             })
         ]),
         h(".body", [

@@ -75,10 +75,33 @@ class Db:
         deck_ids = list(map(self.get_or_create_deck, decks))
 
         source_id = None
+        source_set = set()
+        for t in filter(lambda x: x.get("sourceH"), entries):
+            source_h = t.get("sourceH")
+            if source_h not in source_set:
+                self.conn.execute("""
+                INSERT INTO source (name, created, h)
+                VALUES (?, ?, ?)
+                ON CONFLICT DO NOTHING
+                """, (t["source"], t["sourceCreated"], source_h))
+
+                source_id = self.conn.execute("""
+                SELECT id FROM source
+                WHERE h = ?
+                """, (source_h,)).fetchone()[0]
+
+                source_set.add(source_h)
+
         templates = []
         for t in filter(lambda x: x["model"] and x["template"], entries):
-            source_id = t["sourceId"]
+            source_id = t.get("sourceId", source_id)
             templates.append(f"{t['template']}\x1f{t['model']}")
+
+            if t.get("tFront"):
+                self.conn.execute("""
+                INSERT INTO template (name, model, front, back, css, sourceId)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """, (t["template"], t["model"], t["tFront"], t.get("tBack"), t.get("css"), source_id))
 
         templates = list(set(templates))
         template_ids = []
@@ -155,18 +178,23 @@ class Db:
             srsLevel,
             nextReview,
             d.name AS deck,
-            created,
+            c.created AS created,
             modified,
             t.name AS template,
             t.model AS model,
             t.front AS tFront,
             t.back AS tBack,
+            css,
             n.name AS entry,
-            n.data AS data
+            n.data AS data,
+            s.name AS source,
+            s.h AS sourceH,
+            s.created AS sourceCreated
         FROM card AS c
         INNER JOIN deck AS d ON d.id = deckId
-        INNER JOIN template AS t ON t.id = templateId
-        INNER JOIN note AS n ON n.id = noteId
+        JOIN template AS t ON t.id = templateId
+        JOIN note AS n ON n.id = noteId
+        JOIN source AS s ON s.id = n.sourceId
         """)
 
         items = []
@@ -243,4 +271,39 @@ class Db:
                 )
                 """, (json.dumps({**data, **v}, ensure_ascii=False), c_id))
 
+        self.conn.commit()
+
+    def update_many(self, c_ids: List[int], u: dict):
+        for k, v in u.items():
+            if k == "deck":
+                deck_id = self.get_or_create_deck(v)
+                self.conn.execute(f"""
+                UPDATE card
+                SET deckId = ?
+                WHERE id IN ({",".join(["?"] * len(c_ids))})
+                """, (deck_id, *c_ids))
+            elif k in {
+                "nextReview", "created", "modified",
+                "front", "back", "mnemonic", "srsLevel"
+            }:
+                self.conn.execute(f"""
+                UPDATE card
+                SET {k} = ?
+                WHERE id IN ({",".join(["?"] * len(c_ids))})
+                """, (v, *c_ids))
+
+        self.conn.commit()
+
+    def delete(self, c_id: int):
+        self.conn.execute("""
+        DELETE FROM card
+        WHERE id = ?
+        """, (c_id,))
+        self.conn.commit()
+
+    def delete_many(self, c_ids: List[int]):
+        self.conn.execute(f"""
+        DELETE FROM card
+        WHERE id IN ({",".join(["?"] * len(c_ids))})
+        """, c_ids)
         self.conn.commit()

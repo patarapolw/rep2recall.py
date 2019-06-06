@@ -27,6 +27,9 @@ $(() => {
                 name: "Review all"
             },
             separator2: "-----",
+            export: {
+                name: "Export deck"
+            },
             delete: {
                 name: "Delete deck"
             }
