@@ -59,6 +59,10 @@
       {
         "ext": "r2r",
         "role": "Editor"
+      },
+      {
+        "ext": "apkg",
+        "role": "Editor"
       }
     ],
     "files": [
@@ -78,6 +82,7 @@
     "js:build": "rimraf dist && webpack --config webpack.prod.js",
     "py:build": "poetry run pyinstaller -wF pyserver.py --hidden-import=gevent",
     "electron:start": "electron .",
+    "electron:build:dev": "webpack --config webpack.prod.js --mode=development -w",
     "electron:build": "rimraf release && yarn run build && electron-builder"
   }
 }

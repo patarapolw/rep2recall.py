@@ -19,6 +19,7 @@ export interface ITreeViewItem {
 }
 
 @Component({
+    name: "treeview-item",
     template: h("li", {attrs: {
         "v-if": "!isDeleted"
     }}, [

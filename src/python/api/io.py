@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, send_file
 from flask_socketio import send
 from uuid import uuid4
-from slugify import slugify
+from werkzeug.utils import secure_filename
 from gevent import sleep
 
 from ..shared import Config
@@ -61,4 +61,4 @@ def r_export():
 
     new_file.close()
 
-    return send_file(filename, attachment_filename=f"{slugify(deck)}.r2r", as_attachment=True, cache_timeout=-1)
+    return send_file(filename, attachment_filename=f"{secure_filename(deck)}.r2r", as_attachment=True, cache_timeout=-1)
