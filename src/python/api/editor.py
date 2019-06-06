@@ -64,6 +64,14 @@ def r_editor_insert_many():
     return jsonify(Config.DB.insert_many(request.json["entries"]))
 
 
+@api_editor.route("/editTags", methods=["PUT"])
+def r_editor_edit_tags():
+    d = request.json
+    Config.DB.edit_tags(d["ids"], d["tags"], d["isAdd"])
+
+    return Response(status=201)
+
+
 def _editor_entry_post_process(c: dict) -> dict:
     if c["front"].startswith("@md5\n"):
         data = c.get("data", dict())

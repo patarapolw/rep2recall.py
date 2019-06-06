@@ -1,6 +1,6 @@
 import { Vue, Component, Prop } from "vue-property-decorator";
 import h from "hyperscript";
-import { Columns } from "../shared";
+import { Columns, IColumn } from "../shared";
 import DatetimeNullable from "./DatetimeNullable";
 import { makeCamelSpaced, fetchJSON, normalizeArray, html2md } from "../util";
 
@@ -50,7 +50,8 @@ import { makeCamelSpaced, fetchJSON, normalizeArray, html2md } from "../util";
                     h("input.form-control.col-sm-10", {attrs: {
                         "v-else": "",
                         ":placeholder": "c.type === 'list' ? 'Please input tags separated by spaces' : ''",
-                        "v-model": "data[c.name]",
+                        ":value": "c.type === 'list' ? (data[c.name] || []).join(' ') : data[c.name]",
+                        "v-on:input": "onInputChanged($event, c)",
                         ":required": "c.required"
                     }}),
                     h(".invalid-feedback", "{{ c.label || makeCamelSpaced(c.name) }} is required.")
@@ -102,6 +103,15 @@ export default class EntryEditor extends Vue {
                     return;
                 }
             }
+        }
+    }
+
+    private onInputChanged(evt: any, col: IColumn) {
+        if (col.type === "list") {
+            const tags: string[] = evt.target.value.split(" ")
+            Vue.set(this.data, col.name, tags.filter((t, i) => tags.indexOf(t) === i).sort());
+        } else {
+            Vue.set(this.data, col.name, evt.target.value);
         }
     }
 }

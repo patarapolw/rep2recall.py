@@ -307,3 +307,45 @@ class Db:
         WHERE id IN ({",".join(["?"] * len(c_ids))})
         """, c_ids)
         self.conn.commit()
+
+    def edit_tags(self, c_ids: List[int], tags: List[str], is_add: bool):
+        for c_id in c_ids:
+            prev_tags = set(c[0] for c in self.conn.execute("""
+            SELECT name
+            FROM tag AS t
+            INNER JOIN cardTag AS ct ON ct.tagId = t.id
+            INNER JOIN card AS c ON ct.cardId = c.id
+            WHERE c.id = ?
+            """, (c_id,)))
+
+            if is_add:
+                updated_tags = set(tags) - prev_tags
+
+                for t in sorted(updated_tags):
+                    self.conn.execute("""
+                    INSERT INTO tag (name)
+                    VALUES (?)
+                    ON CONFLICT DO NOTHING
+                    """, (t,))
+
+                    self.conn.execute("""
+                    INSERT INTO cardTag (cardId, tagId)
+                    VALUES (
+                        ?,
+                        (SELECT tag.id FROM tag WHERE tag.name = ?)
+                    )
+                    ON CONFLICT DO NOTHING
+                    """, (c_id, t))
+            else:
+                updated_tags = prev_tags - set(tags)
+
+                for t in sorted(updated_tags):
+                    self.conn.execute("""
+                    DELETE FROM cardTag AS ct
+                    INNER JOIN tag AS t WHERE t.id = ct.tagId
+                    WHERE
+                        cardId = ? AND
+                        t.name = ?
+                    """, (c_id, t))
+
+        self.conn.commit()

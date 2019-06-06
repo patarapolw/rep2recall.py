@@ -37,10 +37,21 @@ import toastr from "toastr";
                         "v-b-modal.edit-entry-modal": "",
                         "v-if": "checkedIds.size === 1"
                     }}, "Edit"),
-                    h("b-button.mr-3", {attrs: {
+                    h("b-dropdown.mr-3", {attrs: {
+                        "split": "",
                         "variant": "outline-secondary",
-                        "v-on:click": "changeDeck"
-                    }}, "Change Deck"),
+                        "v-on:click": "changeDeck",
+                        "text": "Change Deck"
+                    }}, [
+                        h("b-dropdown-item", {attrs: {
+                            "v-on:click": "editTags(true)",
+                            "href": "#"
+                        }}, "Add tags"),
+                        h("b-dropdown-item", {attrs: {
+                            "v-on:click": "editTags(false)",
+                            "href": "#"
+                        }}, "Remove tags")
+                    ]),
                     h("b-button.editor-button", {attrs: {
                         "variant": "outline-danger",
                         "v-on:click": "deleteCards"
@@ -295,13 +306,36 @@ export default class EditorUi extends Vue {
             content: {
                 element: "input"
             }
-        })
+        });
 
         if (deck) {
             this.isLoading = true;
             await fetchJSON("/api/editor/", {
                 ids: Array.from(this.checkedIds),
                 update: {deck}
+            }, "PUT")
+
+            this.fetchData();
+        }
+    }
+
+    private async editTags(isAdd: boolean) {
+        const tags = await swal({
+            text: `Please enter tag names you want to ${isAdd ? "add" : "remove"}.`,
+            content: {
+                element: "input",
+                attributes: {
+                    placeholder: "Separated by spaces"
+                }
+            }
+        });
+
+        if (tags) {
+            this.isLoading = true;
+            await fetchJSON(`/api/editor/editTags`, {
+                ids: Array.from(this.checkedIds),
+                tags: tags.split(" "),
+                isAdd
             }, "PUT")
 
             this.fetchData();
