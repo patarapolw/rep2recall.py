@@ -23,10 +23,16 @@ def r_editor():
 
     elif request.method == "PUT":
         if r.get("create"):
-            c_id = db.insert_many([r["create"]])[0]
-            return jsonify({
-                "id": c_id
-            })
+            if isinstance(r["create"], list):
+                c_ids = db.insert_many(r["create"])
+                return jsonify({
+                    "ids": c_ids
+                })
+            else:
+                c_id = db.insert_many([r["create"]])[0]
+                return jsonify({
+                    "id": c_id
+                })
 
         if r.get("update"):
             if r.get("ids"):
@@ -57,11 +63,6 @@ def r_editor_find_one():
         c["back"] = anki_mustache(c["tBack"], data)
 
     return jsonify(c)
-
-
-@api_editor.route("/insertMany", methods=["POST"])
-def r_editor_insert_many():
-    return jsonify(Config.DB.insert_many(request.json["entries"]))
 
 
 @api_editor.route("/editTags", methods=["PUT"])
