@@ -67,8 +67,11 @@ class Db:
         """)
 
     def close(self):
-        self.conn.commit()
-        self.conn.close()
+        try:
+            self.conn.commit()
+            self.conn.close()
+        except sqlite3.Error:
+            pass
 
     def insert_many(self, entries: List[dict]) -> List[int]:
         decks = list(set(map(lambda x: x["deck"], entries)))

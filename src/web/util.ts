@@ -17,7 +17,7 @@ export function toTitle(s: string) {
 
 export async function fetchJSON(url: string, data: any = {}, method: string = "POST"): Promise<any> {
     const start = new Date().getSeconds();
-    
+
     while (new Date().getSeconds() - start < 10) {
         try {
             const res = await fetch(new URL(url, `http://localhost:${ServerPort}`).href, {
@@ -52,12 +52,29 @@ export async function fetchJSON(url: string, data: any = {}, method: string = "P
     })
 
     if (r) {
-        await fetchJSON(url, data, method);
+        return await fetchJSON(url, data, method);
     }
 }
 
+const anchorAttributes = {
+    type: 'output',
+    regex: /()\((.+=".+" ?)+\)/g,
+    replace: (match: any, $1: string, $2: string) => {
+        return $1.replace('">', `" ${$2}>`);
+    }
+};
+
+const fixLinks = {
+    type: "output",
+    regex: /(src|href=")([^"]+)(")/g,
+    replace: `$1http://localhost:${ServerPort}/$2$3`
+}
+
+showdown.extension('anchorAttributes', anchorAttributes);
+showdown.extension('fixLinks', fixLinks);
 const mdConverter = new showdown.Converter({
-    tables: true
+    tables: true,
+    extensions: ['anchorAttributes', 'fixLinks']
 });
 
 export function md2html(s: string): string {
@@ -94,7 +111,7 @@ export function normalizeArray(item: any, forced: boolean = true) {
         if (forced || item.length == 1) {
             return item[0];
         }
-    } 
+    }
 
     return item;
 }

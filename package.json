@@ -67,7 +67,9 @@
     ],
     "files": [
       "dist/**/*",
-      "package.json"
+      "package.json",
+      "!dist/pyserver.app",
+      "!dist/pyserver.app/**/*"
     ],
     "asarUnpack": [
       "dist/pyserver"
@@ -78,11 +80,11 @@
     "dev": "concurrently 'yarn run js:dev' 'yarn run py:dev'",
     "js:dev": "webpack-dev-server --config webpack.dev.js",
     "py:dev": "poetry run python pyserver.py",
-    "build": "yarn run js:build && yarn run py:build && rimraf dist/pyserver.app",
+    "build": "yarn run js:build && yarn run py:build",
     "js:build": "rimraf dist && webpack --config webpack.prod.js",
     "py:build": "poetry run pyinstaller -wF pyserver.py --hidden-import=gevent",
     "electron:start": "electron .",
-    "electron:build:dev": "webpack --config webpack.prod.js --mode=development -w",
+    "electron:dev": "yarn run py:build && webpack --config webpack.prod.js --mode=development -w",
     "electron:build": "rimraf release && yarn run build && electron-builder"
   }
 }

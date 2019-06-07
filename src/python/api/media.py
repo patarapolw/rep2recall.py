@@ -1,4 +1,4 @@
-from flask import Blueprint, send_file
+from flask import Blueprint, send_file, jsonify
 from io import BytesIO
 
 from ..shared import Config
@@ -16,3 +16,10 @@ def r_media(media_id: int):
     """, (media_id,)).fetchone()
 
     return send_file(BytesIO(b), attachment_filename=name)
+
+
+@api_media.route("/", methods=["POST"])
+def r_media_path():
+    return jsonify({
+        "path": str(Config.MEDIA_FOLDER)
+    })

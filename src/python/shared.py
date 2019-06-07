@@ -20,3 +20,6 @@ class Config:
 
     DB = Db(COLLECTION)
     atexit.register(DB.close)
+
+    MEDIA_FOLDER = DIR.joinpath("media")
+    MEDIA_FOLDER.mkdir(exist_ok=True)

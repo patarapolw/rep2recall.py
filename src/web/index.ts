@@ -11,6 +11,7 @@ import QuizUi from "./QuizUi";
 import EditorUi from "./EditorUi";
 import ImportUi from "./ImportUi";
 import "./contextmenu";
+import SettingsUi from "./SettingsUi";
 
 // @ts-ignore
 $(() => $('.tooltip-enabled').tooltip());
@@ -24,7 +25,8 @@ const router = new VueRouter({
         {path: "/", component: QuizUi},
         {path: "/quiz", component: QuizUi},
         {path: "/editor", component: EditorUi},
-        {path: "/import", component: ImportUi}
+        {path: "/import", component: ImportUi},
+        {path: "/settings", component: SettingsUi}
     ]
 });
 
@@ -43,6 +45,10 @@ const app = new Vue({
             h("router-link.fas.fa-file-import.tooltip-enabled.nav-icon", {
                 title: "Import",
                 attrs: {to: "/import"}
+            }),
+            h("router-link.fas.fa-cog.tooltip-enabled.nav-icon", {
+                title: "Settings",
+                attrs: {to: "/settings"}
             }),
             h("a.fab.fa-github.tooltip-enabled.nav-icon", {
                 title: "About",
