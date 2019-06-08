@@ -56,6 +56,21 @@ import { makeCamelSpaced, fetchJSON, normalizeArray, html2md } from "../util";
                     }}),
                     h(".invalid-feedback", "{{ c.label || makeCamelSpaced(c.name) }} is required.")
                 ])
+            ]),
+            h("h4.mb-3", "Template data"),
+            h(".col-12", {attrs: {
+                "v-if": "data.data"
+            }}, [
+                h(".row.mb-3", {attrs: {
+                    "v-for": "key in Object.keys(data.data)",
+                    ":key": "key"
+                }}, [
+                    h("label.col-form-label.mb-1.col-sm-2", "{{ key }}"),
+                    h("textarea.form-control.col-sm-10", {attrs: {
+                        ":value": "data.data[key]",
+                        "readonly": ""
+                    }})
+                ])
             ])
         ])
     ]).outerHTML
@@ -82,12 +97,12 @@ export default class EntryEditor extends Vue {
         });
 
         if (this.entryId) {
-            fetchJSON("/api/editor/findOne", {id: this.entryId}).then((data) => {
-                Vue.set(this, "data", data)
+            fetchJSON("/api/editor/", {q: {id: this.entryId}}).then((data) => {
+                Vue.set(this, "data", data.data[0])
                 this.cols.forEach((c) => {
                     if (c.type === "html") {
                         const mde = normalizeArray(this.$refs[c.name]).simplemde;
-                        mde.value(html2md(data[c.name] || ""));
+                        mde.value(html2md(this.data[c.name] || ""));
                     }
                 })
             });

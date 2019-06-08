@@ -2,7 +2,7 @@
 @import "~bootstrap-vue/src/index.scss";
 @import "~flatpickr/dist/flatpickr.min";
 @import "~@fortawesome/fontawesome-free/scss/fontawesome.scss";
-$fa-font-path: '~@fortawesome/fontawesome-free/webfonts';
+$fa-font-path: "~@fortawesome/fontawesome-free/webfonts";
 @import "~@fortawesome/fontawesome-free/scss/regular.scss";
 @import "~@fortawesome/fontawesome-free/scss/solid.scss";
 @import "~@fortawesome/fontawesome-free/scss/brands.scss";
@@ -34,7 +34,7 @@ $nav-button-size: 70px;
         height: $nav-button-size;
         border: 0;
         background-color: rgba($color: #000000, $alpha: 0);
-    
+
         a {
             font-size: 50px;
             text-decoration: none;
@@ -70,12 +70,14 @@ iframe {
     width: 100px;
 }
 
-.col-form-label, .datetime-nullable.input-group {
+.col-form-label,
+.datetime-nullable.input-group {
     padding: 0;
 }
 
 .markdown-editor {
-    .CodeMirror, .CodeMirror-scroll {
+    .CodeMirror,
+    .CodeMirror-scroll {
         height: 150px;
         min-height: 150px;
     }
@@ -135,4 +137,29 @@ button.dropdown-toggle {
 .dropdown-toggle {
     width: 1em !important;
     padding-left: 0.1em !important;
+}
+
+.animated {
+    animation: simple-animation 0.8s linear;
+
+    @keyframes simple-animation {
+        99% {
+            opacity: 0.5;
+            transform: scale(1.1);
+        }
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+}
+
+.btn:active {
+    transition: all 0.5s ease-in;
+    opacity: 0.5;
+    transform: scale(1.1);
+}
+
+input.form-control, textarea.form-control {
+    background-color: white !important;
 }

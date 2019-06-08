@@ -13,8 +13,14 @@ import ImportUi from "./ImportUi";
 import "./contextmenu";
 import SettingsUi from "./SettingsUi";
 
-// @ts-ignore
-$(() => $('.tooltip-enabled').tooltip());
+$(() => {
+    // @ts-ignore
+    $('.tooltip-enabled').tooltip();
+    // $(document.body).on("click", "button", (e) => {
+    //     slowClick($(e.target), false);
+    // });
+});
+
 
 Vue.use(VueRouter);
 Vue.use(BootstrapVue);

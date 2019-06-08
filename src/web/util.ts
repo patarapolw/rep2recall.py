@@ -1,6 +1,5 @@
 import showdown from "showdown";
 import { ServerPort } from "./shared";
-import TdService from "turndown";
 import swal from "sweetalert";
 
 export function shuffle(a: any[]) {
@@ -81,11 +80,9 @@ export function md2html(s: string): string {
     return mdConverter.makeHtml(s);
 }
 
-const td = new TdService();
-td.remove("script");
-
 export function html2md(s: string): string {
-    return td.turndown(s);
+    return s;
+    // return s.replace(/<script[^>]*>.*<\/script>/gs, "");
 }
 
 export function makeCamelSpaced(s: string): string {
@@ -126,4 +123,18 @@ export function quizDataToContent(data: any, side: "front" | "back" | "note"): s
     ${!data.js ? `<script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>` : ""}
     <script>${data.js || ""}</script>
     `;
+}
+
+export function slowClick($selector: JQuery, doClick: boolean = true, duration: number = 100) {
+    $selector.addClass("animated");
+    $selector.css({
+        "animation-duration": `${duration}ms`
+    });
+    setTimeout(() => {
+        if (doClick) {
+            $selector.click();
+        }
+        $selector.removeClass("animated");
+    }, duration);
+    return $selector;
 }

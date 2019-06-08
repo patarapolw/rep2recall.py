@@ -53,18 +53,6 @@ def r_editor():
     return Response(status=404)
 
 
-@api_editor.route("/findOne", methods=["POST"])
-def r_editor_find_one():
-    c = tuple(filter(mongo_filter({"id": request.json["id"]}), Config.DB.get_all()))[0]
-
-    if c["front"].startswith("@md5\n"):
-        data = c.get("data", dict())
-        c["front"] = anki_mustache(c["tFront"], data)
-        c["back"] = anki_mustache(c["tBack"], data)
-
-    return jsonify(c)
-
-
 @api_editor.route("/editTags", methods=["PUT"])
 def r_editor_edit_tags():
     d = request.json

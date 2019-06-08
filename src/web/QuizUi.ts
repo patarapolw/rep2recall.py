@@ -1,7 +1,7 @@
 import { Vue, Component, Watch } from "vue-property-decorator";
 import h from "hyperscript";
 import TreeviewItem, { ITreeViewItem } from "./quiz/TreeviewItem";
-import { fetchJSON, md2html, shuffle, normalizeArray, quizDataToContent } from "./util";
+import { fetchJSON, shuffle, quizDataToContent, slowClick } from "./util";
 import swal from "sweetalert";
 import EntryEditor from "./editor/EntryEditor";
 import $ from "jquery";
@@ -120,22 +120,22 @@ export default class QuizUi extends Vue {
             if (e.key === "Enter" || e.key === " ") {
                 const $toggle = $(".quiz-toggle");
                 if ($toggle.length > 0) {
-                    $toggle.click();
+                    slowClick($toggle);
                 } else {
-                    $(".quiz-next").click()
+                    slowClick($(".quiz-next"));
                 }
             } else if (e.key === "Backspace" || e.key === "ArrowLeft") {
-                $(".quiz-previous").click();
+                slowClick($(".quiz-previous"));
             } else if (e.key === "1") {
-                $(".quiz-right").click();
+                slowClick($(".quiz-right"));
             } else if (e.key === "2") {
-                $(".quiz-wrong").click();
+                slowClick($(".quiz-wrong"));
             } else if (e.key === "3") {
-                $(".quiz-edit").click();
+                slowClick($(".quiz-edit"));
             } else if (e.key === "ArrowDown") {
-                $(".quiz-toggle").click();
+                slowClick($(".quiz-toggle"));
             } else if (e.key === "ArrowRight") {
-                $(".quiz-next").click();
+                slowClick($(".quiz-next"));
             }
         });
     }
