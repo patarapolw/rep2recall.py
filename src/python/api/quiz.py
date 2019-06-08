@@ -117,7 +117,7 @@ def r_quiz_render():
 
     if c["front"].startswith("@md5\n"):
         t = db.conn.execute("""
-        SELECT front, back
+        SELECT front, back, css, js
         FROM template
         WHERE id = ?
         """, (c["templateId"],)).fetchone()
@@ -130,6 +130,8 @@ def r_quiz_render():
 
         c["front"] = anki_mustache(t["front"], data)
         c["back"] = anki_mustache(t["back"], data)
+        c["css"] = t["css"]
+        c["js"] = t["js"]
 
     return jsonify(c)
 

@@ -11,7 +11,7 @@ import io from "socket.io-client";
             h(".custom-file", [
                 h("input.custom-file-input", {
                     type: "file",
-                    accept: ".apkg, .r2r",
+                    accept: ".apkg, .r2r, .db",
                     attrs: {
                         "v-on:change": "onImportFileChanged"
                     }

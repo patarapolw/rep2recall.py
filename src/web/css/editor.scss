@@ -76,5 +76,9 @@
         overflow: scroll;
         max-height: 150px;
         max-width: 400px;
+
+        .wrapped {
+            word-break: break-word;
+        }
     }
 }

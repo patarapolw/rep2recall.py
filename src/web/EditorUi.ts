@@ -1,7 +1,7 @@
 import { Vue, Component, Watch } from "vue-property-decorator";
 import h from "hyperscript";
 import { Columns } from "./shared";
-import { makeCamelSpaced, fetchJSON } from "./util";
+import { makeCamelSpaced, fetchJSON, quizDataToContent } from "./util";
 import DatetimeNullable from "./editor/DatetimeNullable";
 import EntryEditor from "./editor/EntryEditor";
 import swal from "sweetalert";
@@ -156,7 +156,7 @@ import toastr from "toastr";
                     }}, [
                         h("iframe.html-frame", {attrs: {
                             "v-if": "a[2].type === 'html'",
-                            ":srcdoc": "a[1]",
+                            ":srcdoc": "getHtml(d, a[0])",
                             "height": "150",
                             "width": "350",
                             "frameBorder": "0"
@@ -408,6 +408,10 @@ export default class EditorUi extends Vue {
             this.checkedIds.add(id);
         }
         this.$forceUpdate();
+    }
+
+    private getHtml(data: any, side: "front" | "back" | "note"): string {
+        return quizDataToContent(data, side);
     }
 
     @Watch("offset")

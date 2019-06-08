@@ -115,3 +115,15 @@ export function normalizeArray(item: any, forced: boolean = true) {
 
     return item;
 }
+
+export function quizDataToContent(data: any, side: "front" | "back" | "note"): string {
+    const m = /@([^\n]+)\n(.+)/s.exec(data[side]);
+
+    return `
+    ${!data.css ? `<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">` : ""}
+    <style>${data.css || ""}</style>
+    ${m ? m[2] : md2html(data[side] || "")}
+    ${!data.js ? `<script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>` : ""}
+    <script>${data.js || ""}</script>
+    `;
+}

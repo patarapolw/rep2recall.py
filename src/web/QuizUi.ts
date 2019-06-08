@@ -1,7 +1,7 @@
 import { Vue, Component, Watch } from "vue-property-decorator";
 import h from "hyperscript";
 import TreeviewItem, { ITreeViewItem } from "./quiz/TreeviewItem";
-import { fetchJSON, md2html, shuffle, normalizeArray } from "./util";
+import { fetchJSON, md2html, shuffle, normalizeArray, quizDataToContent } from "./util";
 import swal from "sweetalert";
 import EntryEditor from "./editor/EntryEditor";
 import $ from "jquery";
@@ -65,35 +65,30 @@ import $ from "jquery";
                     }}, "<")
                 ]),
                 h("div", [
-                    h("button.btn.btn-primary.ml-2.quiz-toggle", {attrs: {
+                    h("button.btn.ml-2.quiz-toggle", {attrs: {
                         "v-if": "currentQuizIndex >= 0",
                         "v-on:click": "quizShownAnswer = !quizShownAnswer",
-                        ":class": "{'quiz-shown-answer': quizShownAnswer}",
-                        "tabindex": "2"
-                    }}, "Toggle"),
+                        ":class": "quizShownAnswer ? 'btn-secondary' : 'btn-primary'"
+                    }}, "{{quizShownAnswer ? 'Hide' : 'Show'}}"),
                     h("button.btn.btn-success.ml-2.quiz-right", {attrs: {
                         "v-if": "quizShownAnswer",
-                        "v-on:click": "onQuizRightButtonClicked",
-                        "tabindex": "10"
+                        "v-on:click": "onQuizRightButtonClicked"
                     }}, "Right"),
                     h("button.btn.btn-danger.ml-2.quiz-wrong", {attrs: {
                         "v-if": "quizShownAnswer",
-                        "v-on:click": "onQuizWrongButtonClicked",
-                        "tabindex": "9"
+                        "v-on:click": "onQuizWrongButtonClicked"
                     }}, "Wrong"),
                     h("b-button.ml-2.quiz-edit", {attrs: {
                         "variant": "info",
                         "v-if": "quizShownAnswer",
-                        "v-b-modal.edit-entry-modal": "",
-                        "tabindex": "8"
+                        "v-b-modal.edit-entry-modal": ""
                     }}, "Edit"),
                 ]),
                 h("div", {style: {width: "50px"}}, [
                     h("b-button.float-right.quiz-next", {attrs: {
                         "v-if": "quizIds.length > 0",
                         "v-on:click": "onQuizNextButtonClicked",
-                        ":variant": "currentQuizIndex < quizIds.length - 1 ? 'secondary' : 'success'",
-                        "tabindex": "1"
+                        ":variant": "currentQuizIndex < quizIds.length - 1 ? 'secondary' : 'success'"
                     }}, ">")
                 ])
             ])
@@ -166,12 +161,6 @@ export default class QuizUi extends Vue {
         this.quizContent = "";
     }
 
-    private async getTreeViewData() {
-        this.isLoading = true;
-        this.data = await fetchJSON("/api/quiz/treeview", {q: this.q});
-        this.isLoading = false;
-    }
-
     private async onReview(deck: string, type?: string) {
         this.$bvModal.show("quiz-modal");
 
@@ -214,15 +203,6 @@ export default class QuizUi extends Vue {
         return false;
     }
 
-    private async renderQuizContent() {
-        this.quizShownAnswer = false;
-        const id = this.quizIds[this.currentQuizIndex];
-        if (id) {
-            this.quizData = await fetchJSON("/api/quiz/render", {id});
-            this.quizContent = md2html(this.quizData.front);
-        }
-    }
-
     private async onQuizPreviousButtonClicked() {
         if (this.currentQuizIndex > 0) {
             this.currentQuizIndex--;
@@ -246,9 +226,9 @@ export default class QuizUi extends Vue {
     @Watch("quizShownAnswer")
     private onQuizShowButtonClicked() {
         if (this.quizShownAnswer) {
-            this.quizContent = md2html(this.quizData.back);
+            this.quizContent = quizDataToContent(this.quizData, "back");
         } else {
-            this.quizContent = md2html(this.quizData.front);
+            this.quizContent = quizDataToContent(this.quizData, "front");
         }
     }
 
@@ -271,5 +251,20 @@ export default class QuizUi extends Vue {
     private async onEntrySaved(data: any) {
         await fetchJSON("/api/editor/", {id: data.id, update: data}, "PUT");
         Object.assign(this.quizData, data);
+    }
+
+    private async getTreeViewData() {
+        this.isLoading = true;
+        this.data = await fetchJSON("/api/quiz/treeview", {q: this.q});
+        this.isLoading = false;
+    }
+
+    private async renderQuizContent() {
+        this.quizShownAnswer = false;
+        const id = this.quizIds[this.currentQuizIndex];
+        if (id) {
+            this.quizData = await fetchJSON("/api/quiz/render", {id});
+            this.quizContent = quizDataToContent(this.quizData, "front");
+        }
     }
 }

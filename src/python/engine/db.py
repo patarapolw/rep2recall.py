@@ -26,13 +26,15 @@ class Db:
             model       VARCHAR,
             front       VARCHAR NOT NULL,
             back        VARCHAR,
-            css         VARCHAR
+            css         VARCHAR,
+            js          VARCHAR
         );
         CREATE TABLE IF NOT EXISTS note (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             sourceId    INTEGER REFERENCES source(id),
-            name        VARCHAR NOT NULL,
-            data        VARCHAR NOT NULL /* JSON */
+            key         VARCHAR NOT NULL,
+            data        VARCHAR NOT NULL /* JSON */,
+            UNIQUE (sourceId, key)
         );
         CREATE TABLE IF NOT EXISTS media (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -102,9 +104,17 @@ class Db:
 
             if t.get("tFront"):
                 self.conn.execute("""
-                INSERT INTO template (name, model, front, back, css, sourceId)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """, (t["template"], t["model"], t["tFront"], t.get("tBack"), t.get("css"), source_id))
+                INSERT INTO template (name, model, front, back, css, js, sourceId)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    t["template"],
+                    t["model"],
+                    t["tFront"],
+                    t.get("tBack"),
+                    t.get("css"),
+                    t.get("js"),
+                    source_id
+                ))
 
         templates = list(set(templates))
         template_ids = []
@@ -121,10 +131,22 @@ class Db:
         note_ids = []
         for e in entries:
             if e["entry"]:
-                note_ids.append(int(self.conn.execute("""
-                INSERT INTO note (sourceId, name, data)
+                self.conn.execute("""
+                INSERT INTO note (sourceId, key, data)
                 VALUES (?, ?, ?)
-                """, (source_id, e["entry"], json.dumps(e["data"], ensure_ascii=False))).lastrowid))
+                ON CONFLICT DO NOTHING
+                """, (
+                    source_id,
+                    e["entry"],
+                    json.dumps(e["data"], ensure_ascii=False)
+                ))
+                note_id = self.conn.execute("""
+                SELECT id FROM note
+                WHERE
+                    sourceId = ? AND
+                    key = ?
+                """, (source_id, e["entry"])).fetchone()[0]
+                note_ids.append(note_id)
             else:
                 note_ids.append(None)
 
@@ -188,7 +210,8 @@ class Db:
             t.front AS tFront,
             t.back AS tBack,
             css,
-            n.name AS entry,
+            js,
+            n.key AS entry,
             n.data AS data,
             s.name AS source,
             s.h AS sourceH,

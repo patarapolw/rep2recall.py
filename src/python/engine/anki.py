@@ -166,8 +166,8 @@ class Anki:
             """, (
                 t["tname"],
                 t["mname"],
-                self._convert_link(t["qfmt"], media_name_to_id),
-                self._convert_link(t["afmt"], media_name_to_id),
+                "@html\n" + self._convert_link(t["qfmt"], media_name_to_id),
+                "@html\n" + self._convert_link(t["afmt"], media_name_to_id),
                 self._convert_link(t["css"], media_name_to_id),
                 source_id
             ))
@@ -216,7 +216,7 @@ class Anki:
                 "deck": n["deck"].replace("::", "/"),
                 "model": n["mname"],
                 "template": n["tname"],
-                "entry": vs[0],
+                "entry": f"{self.filename}/{n['mname']}/{n['tname']}/{vs[0]}",
                 "data": data,
                 "front": front,
                 "tag": [x for x in n["tags"].split(" ") if x],
