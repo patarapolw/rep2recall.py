@@ -226,7 +226,7 @@ export default class QuizUi extends Vue {
     @Watch("quizShownAnswer")
     private onQuizShowButtonClicked() {
         if (this.quizShownAnswer) {
-            this.quizContent = quizDataToContent(this.quizData, "back");
+            this.quizContent = quizDataToContent(this.quizData, "backAndNote");
         } else {
             this.quizContent = quizDataToContent(this.quizData, "front");
         }

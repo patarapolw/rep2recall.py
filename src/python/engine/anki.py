@@ -216,7 +216,7 @@ class Anki:
                 "deck": n["deck"].replace("::", "/"),
                 "model": n["mname"],
                 "template": n["tname"],
-                "entry": f"{self.filename}/{n['mname']}/{n['tname']}/{vs[0]}",
+                "entry": f"{self.filename}/{n['mname']}/{vs[0]}",
                 "data": data,
                 "front": front,
                 "tag": [x for x in n["tags"].split(" ") if x],

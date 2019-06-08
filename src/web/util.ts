@@ -65,24 +65,38 @@ const anchorAttributes = {
 
 const fixLinks = {
     type: "output",
-    regex: /(src|href=")([^"]+)(")/g,
+    regex: /((?:src|href)="\/)([^"]+)(")/g,
     replace: `$1http://localhost:${ServerPort}/$2$3`
+}
+
+const furiganaParser = {
+    type: "output",
+    regex: /{([^}]+)}\(([^)]+)\)/g,
+    replace: "<ruby>$1<rp>(</rp><rt>$2</rt><rp>)</rp></ruby>"
 }
 
 showdown.extension('anchorAttributes', anchorAttributes);
 showdown.extension('fixLinks', fixLinks);
+showdown.extension('furiganaParser', furiganaParser);
 const mdConverter = new showdown.Converter({
     tables: true,
-    extensions: ['anchorAttributes', 'fixLinks']
+    extensions: ['anchorAttributes', 'fixLinks', 'furiganaParser']
 });
 
 export function md2html(s: string): string {
     return mdConverter.makeHtml(s);
 }
 
-export function html2md(s: string): string {
+function fixHtml(s: string): string {
+    for (const fix of [fixLinks, furiganaParser]) {
+        s = s.replace(fix.regex, fix.replace)
+    };
     return s;
-    // return s.replace(/<script[^>]*>.*<\/script>/gs, "");
+}
+
+export function html2md(s: string): string {
+    // return s;
+    return s.replace(/<script[^>]*>.*<\/script>/gs, "");
 }
 
 export function makeCamelSpaced(s: string): string {
@@ -113,15 +127,26 @@ export function normalizeArray(item: any, forced: boolean = true) {
     return item;
 }
 
-export function quizDataToContent(data: any, side: "front" | "back" | "note"): string {
-    const m = /@([^\n]+)\n(.+)/s.exec(data[side]);
+export function quizDataToContent(data: any, side: "front" | "back" | "note" | "backAndNote"): string {
+    function cleanHtml(s: string) {
+        const m = /^@([^\n]+)\n(.+)$/s.exec(s);
+        return m ? fixHtml(m[2]) : md2html(s);
+    }
+
+    function cleanCssJs(s: string, type: "css" | "js") {
+        const m = /^@([^\n]+)\n(.+)$/s.exec(s);
+        if (m) {
+            return m[1] === "raw" ? m[2] : (type === "css" ? `<style>${m[2]}</style>` : `<script>${m[2]}</script>`)
+        } else {
+            return type === "css" ? `<style>${s}</style>` : `<script>${s}</script>`;
+        }
+    }
 
     return `
-    ${!data.css ? `<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">` : ""}
-    <style>${data.css || ""}</style>
-    ${m ? m[2] : md2html(data[side] || "")}
-    ${!data.js ? `<script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>` : ""}
-    <script>${data.js || ""}</script>
+    ${data.css ? cleanCssJs(data.css, "css") :`<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">`}
+    ${side === "backAndNote" ? 
+    cleanHtml(data.back || "") + "\n<br/>\n" + cleanHtml(data.note || "") : cleanHtml(data[side] || "")}
+    ${!data.js ? `<script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>` : cleanCssJs(data.js, "js")}
     `;
 }
 

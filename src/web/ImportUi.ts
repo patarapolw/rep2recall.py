@@ -16,7 +16,7 @@ import io from "socket.io-client";
                         "v-on:change": "onImportFileChanged"
                     }
                 }),
-                h("label.custom-file-label", "{{ importFile ? importFile.name : 'Please file to upload (*.apkg, *.r2r)' }}")
+                h("label.custom-file-label", "{{ importFile ? importFile.name : 'Please file to upload (*.apkg, *.r2r, *.db)' }}")
             ]),
             h(".input-group-append", [
                 h("button.btn.btn-outline-success.input-group-text", {
