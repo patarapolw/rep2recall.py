@@ -96,7 +96,7 @@ function fixHtml(s: string): string {
 
 export function html2md(s: string): string {
     // return s;
-    return s.replace(/<script[^>]*>.*<\/script>/gs, "");
+    return removeTag(s, "script");
 }
 
 export function makeCamelSpaced(s: string): string {
@@ -162,4 +162,8 @@ export function slowClick($selector: JQuery, doClick: boolean = true, duration: 
         $selector.removeClass("animated");
     }, duration);
     return $selector;
+}
+
+export function removeTag(s: string, tag: string): string {
+    return s.replace(new RegExp(`<${tag}[^>]*>.*</${tag}>`, "gs"), "")
 }

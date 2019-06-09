@@ -27,7 +27,8 @@ class Db:
             front       VARCHAR NOT NULL,
             back        VARCHAR,
             css         VARCHAR,
-            js          VARCHAR
+            js          VARCHAR,
+            UNIQUE (sourceId, name, model)
         );
         CREATE TABLE IF NOT EXISTS note (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -106,6 +107,7 @@ class Db:
                 self.conn.execute("""
                 INSERT INTO template (name, model, front, back, css, js, sourceId)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT DO NOTHING
                 """, (
                     t["template"],
                     t["model"],
