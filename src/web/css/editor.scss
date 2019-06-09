@@ -1,5 +1,6 @@
 .editor-window {
     $control-height: 50px;
+    $editor-input-width: 300px;
 
     .editor-control {
         z-index: 200;
@@ -11,24 +12,39 @@
         top: 0px;
         height: $control-height;
         position: fixed;
-    
-        > button, span {
-            padding: 1em;
+
+        .editor-nav {
+            white-space: nowrap;
+
+            span {
+                padding: 1em;
+            }
         }
 
-        .editor-button {
-            width: 100px;
-            margin-right: 1em;
+        .editor-button-space {
+            padding-right: $editor-input-width + 100px;
+            white-space: nowrap;
 
-            .dropdown-toggle-split {
-                width: 0 !important;
+            .editor-button {
+                width: 100px;
+                margin-right: 1em;
+    
+                .dropdown-toggle-split {
+                    width: 0 !important;
+                }
             }
         }
     
         .editor-input {
             position: fixed;
+            display: inline-block;
             right: 1em;
-            width: 300px;
+            width: $editor-input-width;
+        }
+
+        ::-webkit-scrollbar {
+            width: 0px;  /* Remove scrollbar space */
+            background: transparent;  /* Optional: just make scrollbar invisible */
         }
     }
 

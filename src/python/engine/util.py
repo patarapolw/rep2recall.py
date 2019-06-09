@@ -1,7 +1,9 @@
 import re
 
 
-def anki_mustache(s: str, d: dict) -> str:
+def anki_mustache(s: str, d: dict, front: str = "") -> str:
+    s = s.replace("{{FrontSide}}", front.replace("@html", ""))
+
     for k, v in d.items():
         s = re.sub(r"{{(\S+:)?%s}}" % re.escape(k), v, s)
 

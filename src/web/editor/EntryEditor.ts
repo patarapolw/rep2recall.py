@@ -3,9 +3,10 @@ import h from "hyperscript";
 import { Columns, IColumn } from "../shared";
 import DatetimeNullable from "./DatetimeNullable";
 import { makeCamelSpaced, fetchJSON, normalizeArray, html2md } from "../util";
+import TagEditor from "./TagEditor";
 
 @Component({
-    components: {DatetimeNullable},
+    components: {DatetimeNullable, TagEditor},
     template: h("b-modal", {attrs: {
         ":id": "id",
         ":title": "title",
@@ -22,7 +23,7 @@ import { makeCamelSpaced, fetchJSON, normalizeArray, html2md } from "../util";
             }}, [
                 h(".row", [
                     h("label.col-form-label.mb-1", {attrs: {
-                        ":class": "{'col-sm-2': (['string', 'number', 'list', 'datetime'].indexOf(c.type) !== -1)}"
+                        ":class": "{'col-sm-2': (['string', 'number', 'tag', 'datetime'].indexOf(c.type) !== -1)}"
                     }}, "{{ c.label || makeCamelSpaced(c.name) }}"),
                     h(".w-100", {attrs: {
                         "v-if": "c.type === 'html'",
@@ -47,20 +48,22 @@ import { makeCamelSpaced, fetchJSON, normalizeArray, html2md } from "../util";
                         "v-model": "data[c.name]",
                         ":required": "c.required"
                     }}),
+                    h("tag-editor.col-sm-10", {attrs: {
+                        "v-else-if": "c.type === 'tag'",
+                        "v-model": "data[c.name]"
+                    }}),
                     h("input.form-control.col-sm-10", {attrs: {
                         "v-else": "",
-                        ":placeholder": "c.type === 'list' ? 'Please input tags separated by spaces' : ''",
-                        ":value": "c.type === 'list' ? (data[c.name] || []).join(' ') : data[c.name]",
-                        "v-on:input": "onInputChanged($event, c)",
+                        "v-model": "data[c.name]",
                         ":required": "c.required"
                     }}),
                     h(".invalid-feedback", "{{ c.label || makeCamelSpaced(c.name) }} is required.")
                 ])
             ]),
-            h("h4.mb-3", "Template data"),
             h(".col-12", {attrs: {
                 "v-if": "data.data"
             }}, [
+                h("h4.mb-3", "Template data"),
                 h(".row.mb-3", {attrs: {
                     "v-for": "key in Object.keys(data.data)",
                     ":key": "key"
@@ -118,15 +121,6 @@ export default class EntryEditor extends Vue {
                     return;
                 }
             }
-        }
-    }
-
-    private onInputChanged(evt: any, col: IColumn) {
-        if (col.type === "list") {
-            const tags: string[] = evt.target.value.split(" ")
-            Vue.set(this.data, col.name, tags.filter((t, i) => tags.indexOf(t) === i).sort());
-        } else {
-            Vue.set(this.data, col.name, evt.target.value);
         }
     }
 }

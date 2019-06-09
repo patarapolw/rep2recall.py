@@ -11,21 +11,23 @@ import toastr from "toastr";
     components: {DatetimeNullable, EntryEditor},
     template: h(".stretched.editor-window", [
         h(".editor-control", [
-            h("button.btn", {attrs: {
-                "v-on:click": "offset = 0"
-            }}, "<<"),
-            h("button.btn", {attrs: {
-                "v-on:click": "offset -= limit"
-            }}, "<"),
-            h("span", "{{editorLabel}}"),
-            h("button.btn", {attrs: {
-                "v-on:click": "offset += limit"
-            }}, ">"),
-            h("button.btn", {attrs: {
-                "v-on:click": "offset = NaN"
-            }}, ">>"),
-            h("div", [
-                h("b-button", {attrs: {
+            h(".editor-nav", [
+                h("button.btn", {attrs: {
+                    "v-on:click": "offset = 0"
+                }}, "<<"),
+                h("button.btn", {attrs: {
+                    "v-on:click": "offset -= limit"
+                }}, "<"),
+                h("span", "{{editorLabel}}"),
+                h("button.btn", {attrs: {
+                    "v-on:click": "offset += limit"
+                }}, ">"),
+                h("button.btn", {attrs: {
+                    "v-on:click": "offset = NaN"
+                }}, ">>")
+            ]),
+            h(".editor-button-space", [
+                h("b-button.editor-button", {attrs: {
                     "variant": "outline-success",
                     "v-b-modal.new-entry-modal": ""
                 }}, "New card"),
@@ -170,7 +172,7 @@ import toastr from "toastr";
                         h(".wrapper", {attrs: {
                             "v-else": "",
                         }}, [
-                            h(".wrapped", "{{a[2].type === 'list' ? a[1].join('\\n') : a[1]}}")
+                            h(".wrapped", "{{a[2].type === 'tag' ? a[1].join('\\n') : a[1]}}")
                         ])
                     ]),
                     h("td", {attrs: {

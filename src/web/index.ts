@@ -12,13 +12,12 @@ import EditorUi from "./EditorUi";
 import ImportUi from "./ImportUi";
 import "./contextmenu";
 import SettingsUi from "./SettingsUi";
+import { slowClickHandler } from "./util";
 
 $(() => {
     // @ts-ignore
     $('.tooltip-enabled').tooltip();
-    // $(document.body).on("click", "button", (e) => {
-    //     slowClick($(e.target), false);
-    // });
+    $(document.body).on("click", "button", slowClickHandler);
 });
 
 
@@ -58,7 +57,8 @@ const app = new Vue({
             }),
             h("a.fab.fa-github.tooltip-enabled.nav-icon", {
                 title: "About",
-                href: "https://github.com/patarapolw/rep2recall-py"
+                href: "https://github.com/patarapolw/rep2recall-py",
+                target: "_blank"
             })
         ]),
         h(".body", [

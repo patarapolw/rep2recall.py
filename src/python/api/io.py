@@ -49,15 +49,24 @@ def r_import_progress(msg):
 
 @api_io.route("/export")
 def r_export():
+    def _clean_deck(item):
+        if request.args.get("reset"):
+            item.pop("srsLevel")
+            item.pop("nextReview")
+            item.pop("stat")
+            return item
+        else:
+            return item
+
     deck = request.args.get("deck")
     filename = str(Config.UPLOAD_FOLDER.joinpath(str(uuid4())))
     new_file = Db(str(Config.UPLOAD_FOLDER.joinpath(filename)))
     db = Config.DB
 
-    new_file.insert_many(list(filter(mongo_filter({"$or": [
+    new_file.insert_many(list(map(_clean_deck, filter(mongo_filter({"$or": [
         {"deck": deck},
         {"deck": {"$startswith": f"{deck}/"}}
-    ]}), db.get_all())))
+    ]}), db.get_all()))))
 
     new_file.close()
 

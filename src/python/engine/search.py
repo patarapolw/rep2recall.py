@@ -98,12 +98,28 @@ def mongo_filter(cond: Union[dict, str]) -> Callable[[dict], bool]:
                 elif k == "$not":
                     return not mongo_filter(v)(item)
             else:
+                item_k = item.get(k)
+                if "." in k:
+                    k_split = k.split(".")
+                    item_k = item
+
+                    try:
+                        for kn in k_split[:-1]:
+                            item_k = item_k.get(kn, dict())
+
+                        item_k = item_k.get(k_split[-1])
+                    except AttributeError:
+                        pass
+
+                if not item_k:
+                    item_k = None
+
                 if isinstance(v, dict) and any(k0[0] == "$" for k0 in v.keys()):
-                    return _mongo_compare(item.get(k), v)
-                elif isinstance(item[k], list):
-                    if v not in item[k]:
+                    return _mongo_compare(item_k, v)
+                elif isinstance(item_k, list):
+                    if v not in item_k:
                         return False
-                elif item[k] != v:
+                elif item_k != v:
                     return False
 
         return True
@@ -199,16 +215,24 @@ def _mongo_compare(v, v_obj: dict) -> bool:
                     return any(str(b).startswith(str(v0)) for b in v)
                 else:
                     return str(v).startswith(str(v0))
-            elif op == "$gte":
-                return v >= v0
-            elif op == "$gt":
-                return v > v0
-            elif op == "$lte":
-                return v <= v0
-            elif op == "$lt":
-                return v < v0
             elif op == "$exists":
                 return (v is not None) == v0
+            else:
+                try:
+                    _v = int(v)
+                    _v0 = int(v0)
+                    v, v0 = _v, _v0
+                except ValueError:
+                    pass
+
+                if op == "$gte":
+                    return v >= v0
+                elif op == "$gt":
+                    return v > v0
+                elif op == "$lte":
+                    return v <= v0
+                elif op == "$lt":
+                    return v < v0
         except TypeError:
             pass
 

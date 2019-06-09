@@ -65,6 +65,6 @@ def _editor_entry_post_process(c: dict) -> dict:
     if c["front"].startswith("@md5\n"):
         data = c.get("data", dict())
         c["front"] = anki_mustache(c["tFront"], data)
-        c["back"] = anki_mustache(c["tBack"], data)
+        c["back"] = anki_mustache(c["tBack"], data, c["tFront"])
 
     return c

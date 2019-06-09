@@ -86,8 +86,11 @@ export default class TreeviewItem extends Vue {
             leech: () => this.startReview("leech"),
             new: () => this.startReview("new"),
             all: () => this.startReview("all"),
-            export: () => {
+            exportDeck: () => {
                 location.href = `http://localhost:${ServerPort}/api/io/export?deck=${encodeURIComponent(this.data.fullName)}`;
+            },
+            exportDeckAndReset: () => {
+                location.href = `http://localhost:${ServerPort}/api/io/export?deck=${encodeURIComponent(this.data.fullName)}&reset=true`;
             },
             delete: async () => {
                 if (await this.onDelete(this.data.fullName)) {

@@ -150,17 +150,38 @@ export function quizDataToContent(data: any, side: "front" | "back" | "note" | "
     `;
 }
 
-export function slowClick($selector: JQuery, doClick: boolean = true, duration: number = 100) {
+export function slowClickHandler(evt: any) {
+    // console.log(evt.originalEvent);
+    const duration = 100;
+
+    if (evt.originalEvent !== undefined) {
+        const $selector = $(evt.target);
+        // $selector.prop("disabled", true);
+
+        $selector.addClass("animated");
+        $selector.css({
+            "animation-duration": `${duration}ms`
+        });
+
+        setTimeout(() => {
+            // $selector.prop("disabled", false);
+            $selector.removeClass("animated");
+        }, duration);
+    }
+}
+
+export function slowClick($selector: JQuery) {
+    const duration = 100;
+
     $selector.addClass("animated");
     $selector.css({
         "animation-duration": `${duration}ms`
     });
     setTimeout(() => {
-        if (doClick) {
-            $selector.click();
-        }
+        $selector.click();
         $selector.removeClass("animated");
     }, duration);
+
     return $selector;
 }
 

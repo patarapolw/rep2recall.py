@@ -55,6 +55,9 @@ import $ from "jquery";
                 "width": "450",
                 "frameBorder": "0"
             }}),
+            h(".float-right", [
+                h("small", "{{currentQuizIndex >= 0 ? ((currentQuizIndex + 1).toLocaleString() + ' of ' + quizIds.length.toLocaleString()) : ''}}")
+            ]),
             h(".w-100.d-flex.justify-content-between", {attrs: {
                 "slot": "modal-footer",
             }}, [
@@ -65,11 +68,14 @@ import $ from "jquery";
                     }}, "<")
                 ]),
                 h("div", [
-                    h("button.btn.ml-2.quiz-toggle", {attrs: {
-                        "v-if": "currentQuizIndex >= 0",
-                        "v-on:click": "quizShownAnswer = !quizShownAnswer",
-                        ":class": "quizShownAnswer ? 'btn-secondary' : 'btn-primary'"
-                    }}, "{{quizShownAnswer ? 'Hide' : 'Show'}}"),
+                    h("button.btn.btn-primary.ml-2.quiz-toggle.quiz-show", {attrs: {
+                        "v-if": "currentQuizIndex >= 0 && !quizShownAnswer",
+                        "v-on:click": "quizShownAnswer = true",
+                    }}, "Show"),
+                    h("button.btn.btn-secondary.ml-2.quiz-toggle.quiz-hide", {attrs: {
+                        "v-if": "currentQuizIndex >= 0 && quizShownAnswer",
+                        "v-on:click": "quizShownAnswer = false",
+                    }}, "Hide"),
                     h("button.btn.btn-success.ml-2.quiz-right", {attrs: {
                         "v-if": "quizShownAnswer",
                         "v-on:click": "onQuizRightButtonClicked"
@@ -117,6 +123,8 @@ export default class QuizUi extends Vue {
     constructor(props: any) {
         super(props);
         $(document.body).on("keydown", "#quiz-modal", (e) => {
+            console.log(e.key);
+
             if (e.key === "Enter" || e.key === " ") {
                 const $toggle = $(".quiz-toggle");
                 if ($toggle.length > 0) {
@@ -132,8 +140,10 @@ export default class QuizUi extends Vue {
                 slowClick($(".quiz-wrong"));
             } else if (e.key === "3") {
                 slowClick($(".quiz-edit"));
+            } else if (e.key === "ArrowUp") {
+                slowClick($(".quiz-hide"));
             } else if (e.key === "ArrowDown") {
-                slowClick($(".quiz-toggle"));
+                slowClick($(".quiz-show"));
             } else if (e.key === "ArrowRight") {
                 slowClick($(".quiz-next"));
             }

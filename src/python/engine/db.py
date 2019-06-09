@@ -56,7 +56,8 @@ class Db:
             nextReview  VARCHAR,
             /* tag */
             created     VARCHAR,
-            modified    VARCHAR
+            modified    VARCHAR,
+            stat        VARCHAR
         );
         CREATE TABLE IF NOT EXISTS tag (
             id      INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -217,7 +218,8 @@ class Db:
             n.data AS data,
             s.name AS source,
             s.h AS sourceH,
-            s.created AS sourceCreated
+            s.created AS sourceCreated,
+            stat
         FROM card AS c
         INNER JOIN deck AS d ON d.id = deckId
         JOIN template AS t ON t.id = templateId
@@ -234,7 +236,8 @@ class Db:
             INNER JOIN cardTag AS ct ON ct.tagId = tag.id
             WHERE ct.cardId = ?
             """, (item["id"],))]
-            item["data"] = json.loads(item["data"])
+            item["data"] = json.loads(item["data"] if item["data"] else "{}")
+            item["stat"] = json.loads(item["stat"] if item["stat"] else "{}")
             items.append(item)
 
         return items

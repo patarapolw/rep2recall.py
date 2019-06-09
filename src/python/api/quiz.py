@@ -129,7 +129,7 @@ def r_quiz_render():
         """, (c["noteId"],)).fetchone()[0])
 
         c["front"] = anki_mustache(t["front"], data)
-        c["back"] = anki_mustache(t["back"], data)
+        c["back"] = anki_mustache(t["back"], data, t["front"])
         c["css"] = t["css"]
         c["js"] = t["js"]
 
@@ -141,9 +141,20 @@ def r_quiz_right():
     card_id = request.json["id"]
     db = Config.DB
 
-    srs_level = db.conn.execute("""
-    SELECT srsLevel FROM card WHERE id = ?
-    """, (card_id,)).fetchone()[0]
+    srs_level, stat = db.conn.execute("""
+    SELECT srsLevel, stat FROM card WHERE id = ?
+    """, (card_id,)).fetchone()
+
+    if stat is None:
+        stat = {
+            "rightStreak": 0,
+            "wrongStreak": 0
+        }
+    else:
+        stat = json.loads(stat)
+
+    stat["rightStreak"] += 1
+    stat["wrongStreak"] = 0
 
     if srs_level is None:
         srs_level = 0
@@ -157,10 +168,12 @@ def r_quiz_right():
     UPDATE card
     SET
         srsLevel = ?,
+        stat = ?,
         nextReview = ?
     WHERE id = ?
     """, (
         srs_level,
+        json.dumps(stat),
         str(get_next_review(srs_level)),
         card_id
     ))
@@ -173,9 +186,20 @@ def r_quiz_wrong():
     card_id = request.json["id"]
     db = Config.DB
 
-    srs_level = db.conn.execute("""
-        SELECT srsLevel FROM card WHERE id = ?
-        """, (card_id,)).fetchone()[0]
+    srs_level, stat = db.conn.execute("""
+        SELECT srsLevel, stat FROM card WHERE id = ?
+        """, (card_id,)).fetchone()
+
+    if stat is None:
+        stat = {
+            "rightStreak": 0,
+            "wrongStreak": 0
+        }
+    else:
+        stat = json.loads(stat)
+
+    stat["rightStreak"] = 0
+    stat["wrongStreak"] += 1
 
     if srs_level is None:
         srs_level = 1
@@ -189,10 +213,12 @@ def r_quiz_wrong():
         UPDATE card
         SET
             srsLevel = ?,
+            stat = ?,
             nextReview = ?
         WHERE id = ?
         """, (
         srs_level,
+        json.dumps(stat),
         str(repeat_review()),
         card_id
     ))

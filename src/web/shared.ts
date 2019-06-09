@@ -3,7 +3,7 @@ export interface IColumn {
     width: number;
     readOnly?: boolean;
     label?: string;
-    type?: "string" | "html" | "number" | "datetime" | "list";
+    type?: "string" | "html" | "number" | "datetime" | "tag";
     newEntry?: boolean;
     editEntry?: boolean;
     separator?: string;
@@ -18,7 +18,7 @@ export const Columns: IColumn[] = [
     {name: "template", width: 150, type: "string", newEntry: false},
     {name: "front", width: 400, type: "html", required: true},
     {name: "back", width: 400, type: "html"},
-    {name: "tag", width: 150, type: "list", separator: " "},
+    {name: "tag", width: 150, type: "tag", separator: " "},
     {name: "note", width: 300, type: "html"},
     {name: "srsLevel", width: 150, type: "number", label: "SRS Level", newEntry: false},
     {name: "nextReview", width: 350, type: "datetime", label: "Next Review", newEntry: false}
