@@ -45,6 +45,13 @@ def parse_query(s: str) -> dict:
                 elif v == "new":
                     k = "srsLevel"
                     v = "NULL"
+                elif v == "marked":
+                    k = "tag"
+                    o = "="
+                    v = "marked"
+            elif k == "due":
+                k = "nextReview"
+                o = "<="
 
             if v == "NULL":
                 pre_result = {"$or": [
@@ -54,7 +61,7 @@ def parse_query(s: str) -> dict:
             else:
                 if k in IS_DATE:
                     try:
-                        v = datetime.now() + parse_timedelta(v)
+                        v = str(datetime.now() + parse_timedelta(v))
                     except ValueError:
                         if v == "now":
                             o = "<="
@@ -151,12 +158,15 @@ def sorter(sort_by: str, desc: bool) -> Callable[[Any], bool]:
         m = _sort_convert(a)
         n = _sort_convert(b)
 
-        if type(m) == type(n):
-            return 1 if a > b else 0 if a == b else -1
-        elif isinstance(m, str):
-            return 1
+        if isinstance(m, (float, int, str)):
+            if type(m) == type(n):
+                return 1 if m > n else 0 if m == n else -1
+            elif isinstance(m, str):
+                return 1
+            else:
+                return -1
         else:
-            return -1
+            return 0
 
     return functools.cmp_to_key(lambda x, y: -pre_cmp(x[sort_by], y[sort_by]) if desc else pre_cmp(x[sort_by], y[sort_by]))
 

@@ -1,6 +1,6 @@
 import { Vue, Component, Prop } from "vue-property-decorator";
 import h from "hyperscript";
-import { Columns, IColumn } from "../shared";
+import { Columns } from "../shared";
 import DatetimeNullable from "./DatetimeNullable";
 import { makeCamelSpaced, fetchJSON, normalizeArray, html2md } from "../util";
 import TagEditor from "./TagEditor";
@@ -34,27 +34,32 @@ import TagEditor from "./TagEditor";
                             h("markdown-editor", {attrs: {
                                 ":ref": "c.name",
                                 ":configs": "{spellChecker: false, status: false}",
-                                "v-model": "data[c.name]"
+                                ":value": "update[c.name] || data[c.name]",
+                                "v-on:input": "$set(update, c.name, $event)"
                             }})
                         ]),
                         h("input.form-control.flatten", {attrs: {
-                            "v-model": "data[c.name]",
-                            ":required": "c.required"
+                            ":required": "c.required",
+                            ":value": "update[c.name] || data[c.name]",
+                            "v-on:input": "$set(update, c.name, $event)"
                         }}),
                         h(".invalid-feedback", "{{ c.label || makeCamelSpaced(c.name) }} is required.")
                     ]),
                     h("datetime-nullable.col-sm-10", {attrs: {
                         "v-else-if": "c.type === 'datetime'",
-                        "v-model": "data[c.name]",
+                        ":value": "update[c.name] || data[c.name]",
+                        "v-on:input": "$set(update, c.name, $event)",
                         ":required": "c.required"
                     }}),
                     h("tag-editor.col-sm-10", {attrs: {
                         "v-else-if": "c.type === 'tag'",
-                        "v-model": "data[c.name]"
+                        ":value": "(update[c.name] || data[c.name]) ? (update[c.name] || data[c.name]).join(' ') : ''",
+                        "v-on:input": "$set(update, c.name, $event.split(' '))"
                     }}),
                     h("input.form-control.col-sm-10", {attrs: {
                         "v-else": "",
-                        "v-model": "data[c.name]",
+                        ":value": "update[c.name] || data[c.name]",
+                        "v-on:input": "$set(update, c.name, $event)",
                         ":required": "c.required"
                     }}),
                     h(".invalid-feedback", "{{ c.label || makeCamelSpaced(c.name) }} is required.")
@@ -84,6 +89,7 @@ export default class EntryEditor extends Vue {
     @Prop() title!: string;
     
     private data: any = {};
+    private update: any = {};
 
     private readonly size = "lg";
     private readonly cols = Columns;
@@ -121,6 +127,12 @@ export default class EntryEditor extends Vue {
                     return;
                 }
             }
+        }
+
+        if (this.entryId) {
+            fetchJSON("/api/editor/", {id: this.entryId, update: this.update}, "PUT")
+        } else {
+            fetchJSON("/api/editor/", {create: this.update}, "PUT")
         }
     }
 }

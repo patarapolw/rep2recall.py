@@ -123,8 +123,6 @@ export default class QuizUi extends Vue {
     constructor(props: any) {
         super(props);
         $(document.body).on("keydown", "#quiz-modal", (e) => {
-            console.log(e.key);
-
             if (e.key === "Enter" || e.key === " ") {
                 const $toggle = $(".quiz-toggle");
                 if ($toggle.length > 0) {
