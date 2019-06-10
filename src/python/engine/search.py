@@ -4,6 +4,7 @@ import re
 from typing import Union, Callable, Any
 import math
 import functools
+import json
 
 ANY_OF = {"template", "front", "mnemonic", "entry", "deck", "tag"}
 IS_DATE = {"created", "modified", "nextReview"}
@@ -21,14 +22,16 @@ def parse_query(s: str) -> dict:
         pre_result = None
 
         if len(expr) == 1:
-            and_cond = []
+            or_cond = []
             for a in ANY_OF:
                 if a in IS_STRING:
-                    and_cond.append({a: {"$substr": expr[0]}})
+                    or_cond.append({a: {"$regex": re.escape(expr[0])}})
                 else:
-                    and_cond.append({a: expr[0]})
+                    or_cond.append({a: expr[0]})
 
-            pre_result = {"$and": and_cond}
+            or_cond.append({"data.*": {"$regex": re.escape(expr[0])}})
+
+            pre_result = {"$or": or_cond}
 
         elif len(expr) == 3:
             k, o, v = expr
@@ -43,7 +46,7 @@ def parse_query(s: str) -> dict:
                     o = "="
                     v = 0
                 elif v == "new":
-                    k = "srsLevel"
+                    k = "nextReview"
                     v = "NULL"
                 elif v == "marked":
                     k = "tag"
@@ -105,20 +108,18 @@ def mongo_filter(cond: Union[dict, str]) -> Callable[[dict], bool]:
                 elif k == "$not":
                     return not mongo_filter(v)(item)
             else:
-                item_k = item.get(k)
-                if "." in k:
-                    k_split = k.split(".")
-                    item_k = item
+                item_k = item
 
-                    try:
-                        for kn in k_split[:-1]:
+                for kn in k.split("."):
+                    if isinstance(item_k, dict):
+                        if kn == "*":
+                            item_k = list(item_k.values())
+                        else:
                             item_k = item_k.get(kn, dict())
+                    else:
+                        break
 
-                        item_k = item_k.get(k_split[-1])
-                    except AttributeError:
-                        pass
-
-                if not item_k:
+                if isinstance(item_k, dict) and len(item_k) == 0:
                     item_k = None
 
                 if isinstance(v, dict) and any(k0[0] == "$" for k0 in v.keys()):

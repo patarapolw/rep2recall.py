@@ -178,7 +178,7 @@ def r_quiz_right():
         card_id
     ))
 
-    return Response(status=201)
+    return jsonify({"error": None})
 
 
 @api_quiz.route("/wrong", methods=["PUT"])
@@ -223,4 +223,4 @@ def r_quiz_wrong():
         card_id
     ))
 
-    return Response(status=201)
+    return jsonify({"error": None})

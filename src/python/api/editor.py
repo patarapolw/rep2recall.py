@@ -1,4 +1,5 @@
 from flask import Blueprint, request, Response, jsonify
+import sqlite3
 
 from ..shared import Config
 from ..engine.search import mongo_filter, sorter
@@ -22,25 +23,28 @@ def r_editor():
         })
 
     elif request.method == "PUT":
-        if r.get("create"):
-            if isinstance(r["create"], list):
-                c_ids = db.insert_many(r["create"])
-                return jsonify({
-                    "ids": c_ids
-                })
-            else:
-                c_id = db.insert_many([r["create"]])[0]
-                return jsonify({
-                    "id": c_id
-                })
+        try:
+            if r.get("create"):
+                if isinstance(r["create"], list):
+                    c_ids = db.insert_many(r["create"])
+                    return jsonify({
+                        "ids": c_ids
+                    })
+                else:
+                    c_id = db.insert_many([r["create"]])[0]
+                    return jsonify({
+                        "id": c_id
+                    })
 
-        if r.get("update"):
-            if r.get("ids"):
-                db.update_many(r["ids"], r["update"])
-            else:
-                db.update(r["id"], r["update"])
+            if r.get("update"):
+                if r.get("ids"):
+                    db.update_many(r["ids"], r["update"])
+                else:
+                    db.update(r["id"], r["update"])
 
-        return Response(status=201)
+            return jsonify({"error": None})
+        except sqlite3.Error as e:
+            return jsonify({"error": str(e)})
 
     elif request.method == "DELETE":
         if r.get("ids"):
@@ -48,7 +52,7 @@ def r_editor():
         else:
             db.delete(r["id"])
 
-        return Response(status=201)
+        return jsonify({"error": None})
 
     return Response(status=404)
 
@@ -58,7 +62,7 @@ def r_editor_edit_tags():
     d = request.json
     Config.DB.edit_tags(d["ids"], d["tags"], d["isAdd"])
 
-    return Response(status=201)
+    return jsonify({"error": None})
 
 
 def _editor_entry_post_process(c: dict) -> dict:

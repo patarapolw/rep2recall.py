@@ -275,16 +275,9 @@ export default class EditorUi extends Vue {
 
     private async onEntrySaved(data: any) {
         this.isLoading = true;
-        if (data.id) {
-            await fetchJSON("/api/editor/", {id: data.id, update: data}, "PUT");
-        } else {
-            await fetchJSON("/api/editor/", {create: data}, "PUT");
-        }
-
-        await swal({
-            text: data.id ? "Updated" : "Created",
-            icon: "success"
-        });
+        this.sortBy = "modified";
+        this.desc = true;
+        
         this.fetchData();
     }
 

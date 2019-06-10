@@ -100,7 +100,7 @@ class Db:
                 source_set.add(source_h)
 
         templates = []
-        for t in filter(lambda x: x["model"] and x["template"], entries):
+        for t in filter(lambda x: x.get("model") and x.get("template"), entries):
             source_id = t.get("sourceId", source_id)
             templates.append(f"{t['template']}\x1f{t['model']}")
 
@@ -133,7 +133,7 @@ class Db:
 
         note_ids = []
         for e in entries:
-            if e["entry"]:
+            if e.get("entry"):
                 self.conn.execute("""
                 INSERT INTO note (sourceId, key, data)
                 VALUES (?, ?, ?)
@@ -172,7 +172,7 @@ class Db:
                 now
             )).lastrowid)
 
-            if e["tag"]:
+            if e.get("tag"):
                 for t in e["tag"]:
                     self.conn.execute("""
                     INSERT INTO tag (name)
@@ -222,9 +222,9 @@ class Db:
             stat
         FROM card AS c
         INNER JOIN deck AS d ON d.id = deckId
-        JOIN template AS t ON t.id = templateId
-        JOIN note AS n ON n.id = noteId
-        JOIN source AS s ON s.id = n.sourceId
+        LEFT JOIN template AS t ON t.id = templateId
+        LEFT JOIN note AS n ON n.id = noteId
+        LEFT JOIN source AS s ON s.id = n.sourceId
         """)
 
         items = []

@@ -4,6 +4,7 @@ import { Columns } from "../shared";
 import DatetimeNullable from "./DatetimeNullable";
 import { makeCamelSpaced, fetchJSON, normalizeArray, html2md } from "../util";
 import TagEditor from "./TagEditor";
+import swal from "sweetalert";
 
 @Component({
     components: {DatetimeNullable, TagEditor},
@@ -40,8 +41,7 @@ import TagEditor from "./TagEditor";
                         ]),
                         h("input.form-control.flatten", {attrs: {
                             ":required": "c.required",
-                            ":value": "update[c.name] || data[c.name]",
-                            "v-on:input": "$set(update, c.name, $event)"
+                            ":value": "update[c.name] || data[c.name]"
                         }}),
                         h(".invalid-feedback", "{{ c.label || makeCamelSpaced(c.name) }} is required.")
                     ]),
@@ -59,7 +59,7 @@ import TagEditor from "./TagEditor";
                     h("input.form-control.col-sm-10", {attrs: {
                         "v-else": "",
                         ":value": "update[c.name] || data[c.name]",
-                        "v-on:input": "$set(update, c.name, $event)",
+                        "v-on:input": "$set(update, c.name, $event.target.value)",
                         ":required": "c.required"
                     }}),
                     h(".invalid-feedback", "{{ c.label || makeCamelSpaced(c.name) }} is required.")
@@ -101,6 +101,7 @@ export default class EntryEditor extends Vue {
     
     private onModalShown() {
         this.data = {};
+        this.update = {};
         this.$nextTick(() => {
             normalizeArray(this.$refs.form).classList.remove("was-validated");
         });
@@ -118,10 +119,10 @@ export default class EntryEditor extends Vue {
         }
     }
 
-    private onModalOk(evt: any) {
+    private async onModalOk(evt: any) {
         for (const c of this.cols) {
             if (c.required) {
-                if (!this.data[c.name]) {
+                if (this.update[c.name] === undefined && !this.data[c.name]) {
                     normalizeArray(this.$refs.form).classList.add("was-validated");
                     evt.preventDefault();
                     return;
@@ -129,10 +130,34 @@ export default class EntryEditor extends Vue {
             }
         }
 
-        if (this.entryId) {
-            fetchJSON("/api/editor/", {id: this.entryId, update: this.update}, "PUT")
-        } else {
-            fetchJSON("/api/editor/", {create: this.update}, "PUT")
+        if (Object.keys(this.update).length > 0) {
+            if (this.entryId) {
+                const r = await fetchJSON("/api/editor/", {id: this.entryId, update: this.update}, "PUT");
+                if (!r.error) {
+                    await swal({
+                        text: "Updated",
+                        icon: "success"
+                    });
+                } else {
+                    await swal({
+                        text: r.error,
+                        icon: "error"
+                    })
+                }
+            } else {
+                const r = await fetchJSON("/api/editor/", {create: this.update}, "PUT");
+                if (!r.error) {
+                    await swal({
+                        text: "Created",
+                        icon: "success"
+                    });
+                } else {
+                    await swal({
+                        text: r.error,
+                        icon: "error"
+                    })
+                }
+            }
         }
     }
 }

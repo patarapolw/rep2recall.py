@@ -1,4 +1,4 @@
-import { Vue, Component, Prop, Watch } from "vue-property-decorator";
+import { Vue, Component, Prop } from "vue-property-decorator";
 import h from "hyperscript";
 import flatpickr from "flatpickr";
 import { DateFormat } from "../shared";
