@@ -1,8 +1,7 @@
 from flask import Blueprint, request, Response, jsonify
-import sqlite3
 
 from ..shared import Config
-from ..engine.search import mongo_filter, sorter
+from ..engine.search import mongo_filter, sorter, parse_query
 from ..engine.util import anki_mustache
 
 api_editor = Blueprint("editor", __name__, url_prefix="/api/editor")
@@ -14,37 +13,42 @@ def r_editor():
     db = Config.DB
 
     if request.method == "POST":
+        cond, sort_by, desc = parse_query(r["q"])
+
+        if sort_by is None:
+            sort_by = r.get("sortBy", "deck")
+
+        if desc is None:
+            desc = r.get("desc", False)
+
         offset = r.get("offset", 0)
-        all_data = sorted(filter(mongo_filter(r["q"]), db.get_all()),
-                          key=sorter(r.get("sortBy", "deck"), r.get("desc", False)))
+        all_data = sorted(filter(mongo_filter(cond), db.get_all()),
+                          key=sorter(sort_by, desc))
         return jsonify({
             "data": list(map(_editor_entry_post_process, all_data[offset: offset + r.get("limit", 10)])),
             "count": len(all_data)
         })
 
     elif request.method == "PUT":
-        try:
-            if r.get("create"):
-                if isinstance(r["create"], list):
-                    c_ids = db.insert_many(r["create"])
-                    return jsonify({
-                        "ids": c_ids
-                    })
-                else:
-                    c_id = db.insert_many([r["create"]])[0]
-                    return jsonify({
-                        "id": c_id
-                    })
+        if r.get("create"):
+            if isinstance(r["create"], list):
+                c_ids = db.insert_many(r["create"])
+                return jsonify({
+                    "ids": c_ids
+                })
+            else:
+                c_id = db.insert_many([r["create"]])[0]
+                return jsonify({
+                    "id": c_id
+                })
 
-            if r.get("update"):
-                if r.get("ids"):
-                    db.update_many(r["ids"], r["update"])
-                else:
-                    db.update(r["id"], r["update"])
+        if r.get("update"):
+            if r.get("ids"):
+                db.update_many(r["ids"], r["update"])
+            else:
+                db.update(r["id"], r["update"])
 
-            return jsonify({"error": None})
-        except sqlite3.Error as e:
-            return jsonify({"error": str(e)})
+        return jsonify({"error": None})
 
     elif request.method == "DELETE":
         if r.get("ids"):

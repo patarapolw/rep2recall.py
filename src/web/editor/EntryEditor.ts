@@ -1,8 +1,8 @@
-import { Vue, Component, Prop } from "vue-property-decorator";
+import { Vue, Component, Prop, Emit } from "vue-property-decorator";
 import h from "hyperscript";
 import { Columns } from "../shared";
 import DatetimeNullable from "./DatetimeNullable";
-import { makeCamelSpaced, fetchJSON, normalizeArray, html2md } from "../util";
+import { fetchJSON, normalizeArray, html2md } from "../util";
 import TagEditor from "./TagEditor";
 import swal from "sweetalert";
 
@@ -15,6 +15,10 @@ import swal from "sweetalert";
         "v-on:show": "onModalShown",
         "v-on:ok": "onModalOk"
     }}, [
+        h("img.page-loader", {attrs: {
+            "src": "Spinner-1s-200px.svg",
+            "v-if": "isLoading"
+        }}),
         h("form.col-12.needs-validation", {attrs: {
             "ref": "form"
         }}, [
@@ -25,7 +29,7 @@ import swal from "sweetalert";
                 h(".row", [
                     h("label.col-form-label.mb-1", {attrs: {
                         ":class": "{'col-sm-2': (['string', 'number', 'tag', 'datetime'].indexOf(c.type) !== -1)}"
-                    }}, "{{ c.label || makeCamelSpaced(c.name) }}"),
+                    }}, "{{c.label}}"),
                     h(".w-100", {attrs: {
                         "v-if": "c.type === 'html'",
                     }}, [
@@ -43,7 +47,7 @@ import swal from "sweetalert";
                             ":required": "c.required",
                             ":value": "update[c.name] || data[c.name]"
                         }}),
-                        h(".invalid-feedback", "{{ c.label || makeCamelSpaced(c.name) }} is required.")
+                        h(".invalid-feedback", "{{c.label}} is required.")
                     ]),
                     h("datetime-nullable.col-sm-10", {attrs: {
                         "v-else-if": "c.type === 'datetime'",
@@ -62,13 +66,20 @@ import swal from "sweetalert";
                         "v-on:input": "$set(update, c.name, $event.target.value)",
                         ":required": "c.required"
                     }}),
-                    h(".invalid-feedback", "{{ c.label || makeCamelSpaced(c.name) }} is required.")
+                    h(".invalid-feedback", "{{c.label}} is required.")
                 ])
             ]),
             h(".col-12", {attrs: {
                 "v-if": "data.data"
             }}, [
                 h("h4.mb-3", "Template data"),
+                h(".row.mb-3", [
+                    h("label.col-form-label.col-sm-2", "Source"),
+                    h("input.form-control.col-sm-10", {attrs: {
+                        ":value": "data.source",
+                        "readonly": ""
+                    }})
+                ]),
                 h(".row.mb-3", {attrs: {
                     "v-for": "key in Object.keys(data.data)",
                     ":key": "key"
@@ -90,16 +101,16 @@ export default class EntryEditor extends Vue {
     
     private data: any = {};
     private update: any = {};
+    private isLoading = false;
 
     private readonly size = "lg";
     private readonly cols = Columns;
-    private readonly makeCamelSpaced = makeCamelSpaced
 
     get activeCols() {
         return this.cols.filter((c) => !this.entryId ? c.newEntry !== false : true);
     }
     
-    private onModalShown() {
+    private async onModalShown() {
         this.data = {};
         this.update = {};
         this.$nextTick(() => {
@@ -107,18 +118,22 @@ export default class EntryEditor extends Vue {
         });
 
         if (this.entryId) {
-            fetchJSON("/api/editor/", {q: {id: this.entryId}}).then((data) => {
-                Vue.set(this, "data", data.data[0])
-                this.cols.forEach((c) => {
-                    if (c.type === "html") {
-                        const mde = normalizeArray(this.$refs[c.name]).simplemde;
-                        mde.value(html2md(this.data[c.name] || ""));
-                    }
-                })
+            this.isLoading = true;
+
+            const data = await fetchJSON("/api/editor/", {q: {id: this.entryId}});
+            Vue.set(this, "data", data.data[0])
+            this.cols.forEach((c) => {
+                if (c.type === "html") {
+                    const mde = normalizeArray(this.$refs[c.name]).simplemde;
+                    mde.value(html2md(this.data[c.name] || ""));
+                }
             });
         }
+        
+        this.isLoading = false;
     }
 
+    @Emit("ok")
     private async onModalOk(evt: any) {
         for (const c of this.cols) {
             if (c.required) {
@@ -138,11 +153,6 @@ export default class EntryEditor extends Vue {
                         text: "Updated",
                         icon: "success"
                     });
-                } else {
-                    await swal({
-                        text: r.error,
-                        icon: "error"
-                    })
                 }
             } else {
                 const r = await fetchJSON("/api/editor/", {create: this.update}, "PUT");
@@ -151,11 +161,6 @@ export default class EntryEditor extends Vue {
                         text: "Created",
                         icon: "success"
                     });
-                } else {
-                    await swal({
-                        text: r.error,
-                        icon: "error"
-                    })
                 }
             }
         }

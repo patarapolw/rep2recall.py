@@ -70,7 +70,7 @@ def r_quiz_treeview():
 @api_quiz.route("/", methods=["POST"])
 def r_quiz_build():
     r = request.json
-    and_cond = [parse_query(r["q"])]
+    and_cond = [parse_query(r["q"])[0]]
 
     if r.get("deck"):
         and_cond.append({"$or": [
@@ -178,6 +178,8 @@ def r_quiz_right():
         card_id
     ))
 
+    db.update(card_id)
+
     return jsonify({"error": None})
 
 
@@ -222,5 +224,7 @@ def r_quiz_wrong():
         str(repeat_review()),
         card_id
     ))
+
+    db.update(card_id)
 
     return jsonify({"error": None})

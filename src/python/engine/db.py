@@ -254,7 +254,12 @@ class Db:
         WHERE name = ?
         """, (name,)).fetchone()[0]
 
-    def update(self, c_id: int, u: dict):
+    def update(self, c_id: int, u: dict = None):
+        if u is None:
+            u = dict()
+
+        u["modified"] = str(datetime.now())
+
         for k, v in u.items():
             if k == "deck":
                 deck_id = self.get_or_create_deck(v)
@@ -380,3 +385,4 @@ class Db:
                     """, (c_id, t))
 
         self.conn.commit()
+        self.update(c_ids)

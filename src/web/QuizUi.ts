@@ -24,12 +24,10 @@ import $ from "jquery";
             }
         }, "{{ q }}"),
         h(".treeview", [
-            h("img.small-spinner", {
-                src: "Spinner-1s-200px.svg",
-                attrs: {
-                    ":style": "{display: isLoading ? 'block' : 'none'}"
-                }
-            }),
+            h("img.small-spinner", {attrs: {
+                "src": "Spinner-1s-200px.svg",
+                "v-if": "isLoading"
+            }}),
             h("ul", [
                 h("treeview-item", {attrs: {
                     "v-for": "c in data",

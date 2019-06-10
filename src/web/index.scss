@@ -64,12 +64,6 @@ iframe {
     padding: 0;
 }
 
-.small-spinner {
-    margin: 0 auto;
-    height: 100px;
-    width: 100px;
-}
-
 .col-form-label,
 .datetime-nullable.input-group {
     padding: 0;
@@ -160,6 +154,12 @@ button.dropdown-toggle {
     transform: scale(1.1);
 }
 
-input.form-control, textarea.form-control {
-    background-color: white !important;
+input, textarea {
+    &.form-control {
+        background-color: white !important;
+    }
+
+    &[readonly] {
+        pointer-events: none;
+    }
 }

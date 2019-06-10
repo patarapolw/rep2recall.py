@@ -1,17 +1,19 @@
-from typing import Set, List
+from typing import Set, List, Tuple
 from datetime import datetime, timedelta
 import re
 from typing import Union, Callable, Any
 import math
 import functools
-import json
 
 ANY_OF = {"template", "front", "mnemonic", "entry", "deck", "tag"}
 IS_DATE = {"created", "modified", "nextReview"}
 IS_STRING = {"template", "front", "back", "mnemonic", "deck", "tag", "entry"}
 
 
-def parse_query(s: str) -> dict:
+def parse_query(s: str) -> Tuple[dict, Any, Any]:
+    sort_by = None
+    desc = None
+
     tokens = shlex_split(s)
     token_result = []
 
@@ -35,6 +37,9 @@ def parse_query(s: str) -> dict:
 
         elif len(expr) == 3:
             k, o, v = expr
+
+            if k == "sortBy":
+                o = "="
 
             if k == "is":
                 if v == "due":
@@ -65,10 +70,13 @@ def parse_query(s: str) -> dict:
                 if k in IS_DATE:
                     try:
                         v = str(datetime.now() + parse_timedelta(v))
+                        if o == ":":
+                            if k == "nextReview":
+                                o = "<="
+                            else:
+                                o = ">="
                     except ValueError:
-                        if v == "now":
-                            o = "<="
-                            v = str(datetime.now())
+                        pass
 
                 if o == ":":
                     if isinstance(v, str) or k in IS_STRING:
@@ -89,14 +97,18 @@ def parse_query(s: str) -> dict:
         if pre_result is None:
             raise ValueError("Invalid query string")
 
-        token_result.append({"$not": pre_result} if t[0] == "-" else pre_result)
+        if tuple(pre_result.keys())[0] == "sortBy":
+            sort_by = tuple(pre_result.values())[0]
+            desc = (t[0] == "-")
+        else:
+            token_result.append({"$not": pre_result} if t[0] == "-" else pre_result)
 
-    return {"$and": token_result}
+    return {"$and": token_result}, sort_by, desc
 
 
-def mongo_filter(cond: Union[dict, str]) -> Callable[[dict], bool]:
+def mongo_filter(cond: Union[str, dict]) -> Callable[[dict], bool]:
     if isinstance(cond, str):
-        return mongo_filter(parse_query(cond))
+        return mongo_filter(parse_query(cond)[0])
 
     def inner_filter(item: dict) -> bool:
         for k, v in cond.items():
@@ -108,19 +120,7 @@ def mongo_filter(cond: Union[dict, str]) -> Callable[[dict], bool]:
                 elif k == "$not":
                     return not mongo_filter(v)(item)
             else:
-                item_k = item
-
-                for kn in k.split("."):
-                    if isinstance(item_k, dict):
-                        if kn == "*":
-                            item_k = list(item_k.values())
-                        else:
-                            item_k = item_k.get(kn, dict())
-                    else:
-                        break
-
-                if isinstance(item_k, dict) and len(item_k) == 0:
-                    item_k = None
+                item_k = dot_getter(item, k)
 
                 if isinstance(v, dict) and any(k0[0] == "$" for k0 in v.keys()):
                     return _mongo_compare(item_k, v)
@@ -136,6 +136,9 @@ def mongo_filter(cond: Union[dict, str]) -> Callable[[dict], bool]:
 
 
 def parse_timedelta(s: str) -> timedelta:
+    if s == "now":
+        return timedelta()
+
     m = re.search("([-+]?\\d+)(\\S*)", s)
     if m:
         if m[2] in {"m", "min"}:
@@ -169,7 +172,31 @@ def sorter(sort_by: str, desc: bool) -> Callable[[Any], bool]:
         else:
             return 0
 
-    return functools.cmp_to_key(lambda x, y: -pre_cmp(x[sort_by], y[sort_by]) if desc else pre_cmp(x[sort_by], y[sort_by]))
+    return functools.cmp_to_key(lambda x, y: -pre_cmp(dot_getter(x, sort_by), dot_getter(y, sort_by))
+    if desc else pre_cmp(dot_getter(x, sort_by), dot_getter(y, sort_by)))
+
+
+def dot_getter(d: dict, k: str) -> Any:
+    v = d
+    for kn in k.split("."):
+        if isinstance(v, dict):
+            if kn == "*":
+                v = list(v.values())
+            else:
+                v = v.get(kn, dict())
+        elif isinstance(v, list):
+            try:
+                v = v[int(kn)]
+            except (ValueError, IndexError):
+                v = None
+                break
+        else:
+            break
+
+    if isinstance(v, dict) and len(v) == 0:
+        v = None
+
+    return v
 
 
 def shlex_split(s: str, split_token: Set[str] = None, keep_splitter: bool = False) -> List[str]:

@@ -16,6 +16,7 @@ export function toTitle(s: string) {
 
 export async function fetchJSON(url: string, data: any = {}, method: string = "POST"): Promise<any> {
     const start = new Date().getSeconds();
+    let error = "Cannot connect to server.";
 
     while (new Date().getSeconds() - start < 10) {
         try {
@@ -28,31 +29,35 @@ export async function fetchJSON(url: string, data: any = {}, method: string = "P
             });
 
             try {
-                return await res.json();
-            } catch (e) {
-                if (res.status < 400) {
-                    return res.status;
-                } else {
-                    throw e;
+                const result = await res.json();
+                if (result.error) {
+                    await swal({
+                        text: result.error,
+                        icon: "error"
+                    });
                 }
+                return result;
+            } catch (e) {
+                await swal({
+                    text: res.statusText,
+                    icon: "error"
+                });
+                return {error: e};
             }
         } catch (e) {
+            console.error(e);
+
+            error = e.toString();
             await new Promise((resolve) => {
                 setTimeout(resolve, 1000);
             })
         }
     }
 
-    // @ts-ignore
     const r = await swal({
-        text: "Cannot connect to server. Retry?",
-        icon: "error",
-        buttons: true
-    })
-
-    if (r) {
-        return await fetchJSON(url, data, method);
-    }
+        text: error,
+        icon: "error"
+    });
 }
 
 const anchorAttributes = {
@@ -97,24 +102,6 @@ function fixHtml(s: string): string {
 export function html2md(s: string): string {
     // return s;
     return removeTag(s, "script");
-}
-
-export function makeCamelSpaced(s: string): string {
-    const tokens: string[] = [];
-    let previousStart = -1;
-
-    s.split("").forEach((c, i) => {
-        if (c === c.toLocaleUpperCase()) {
-            tokens.push(s.substr(previousStart + 1, i));
-            previousStart = i - 1;
-        }
-    });
-
-    if (previousStart < s.length - 2) {
-        tokens.push(s.substr(previousStart + 1));
-    }
-
-    return tokens.map((t) => t[0].toLocaleUpperCase() + t.substr(1)).join(" ");
 }
 
 export function normalizeArray(item: any, forced: boolean = true) {

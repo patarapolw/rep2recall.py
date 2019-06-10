@@ -1,7 +1,7 @@
 import { Vue, Component, Watch } from "vue-property-decorator";
 import h from "hyperscript";
 import { Columns } from "./shared";
-import { makeCamelSpaced, fetchJSON, quizDataToContent } from "./util";
+import { fetchJSON, quizDataToContent } from "./util";
 import DatetimeNullable from "./editor/DatetimeNullable";
 import EntryEditor from "./editor/EntryEditor";
 import swal from "sweetalert";
@@ -120,7 +120,7 @@ import toastr from "toastr";
                         h("a", {attrs: {
                             "href": "#",
                             "v-on:click": "onTableHeaderClicked(c.name)"
-                        }}, "{{ c.label || makeCamelSpaced(c.name) }}"),
+                        }}, "{{c.label}}"),
                         h("span", {attrs: {
                             "v-if": "sortBy === c.name"
                         }}, "{{ desc ? ' ▲' : ' ▼'}}")
@@ -128,12 +128,28 @@ import toastr from "toastr";
                     h("th", {attrs: {
                         "v-if": "hasSource",
                         "scope": "col"
-                    }}, "Source"),
+                    }}, [
+                        h("a", {attrs: {
+                            "href": "#",
+                            "v-on:click": "onTableHeaderClicked('source')"
+                        }}, "Source"),
+                        h("span", {attrs: {
+                            "v-if": "sortBy === 'source'"
+                        }}, "{{ desc ? ' ▲' : ' ▼'}}")
+                    ]),
                     h("th", {attrs: {
                         "v-for": "c in extraCols",
                         ":key": "'data.' + c",
                         "scope": "col"
-                    }}, "{{c}}")
+                    }}, [
+                        h("a", {attrs: {
+                            "href": "#",
+                            "v-on:click": "onTableHeaderClicked('data.' + c)"
+                        }}, "{{c}}"),
+                        h("span", {attrs: {
+                            "v-if": "sortBy === ('data.' + c)"
+                        }}, "{{ desc ? ' ▲' : ' ▼'}}")
+                    ])
                 ])
             ]),
             h("tbody", [
@@ -147,7 +163,7 @@ import toastr from "toastr";
                     h("td", {style: {width: "50px"}}, [
                         h("div", [
                             h("input", {type: "checkbox", attrs: {
-                                "v-on:click": "onCheckboxClicked($event, d.id)",
+                                "v-on:click.native": "onCheckboxClicked($event, d.id)",
                                 ":checked": "checkedIds.has(d.id)"
                             }})
                         ])
@@ -235,8 +251,6 @@ export default class EditorUi extends Vue {
         extra: 250
     }
 
-    private makeCamelSpaced = makeCamelSpaced;
-
     public mounted() {
         this.fetchData();
     }
@@ -273,11 +287,10 @@ export default class EditorUi extends Vue {
         return output;
     }
 
-    private async onEntrySaved(data: any) {
-        this.isLoading = true;
-        this.sortBy = "modified";
+    private async onEntrySaved() {
+        this.reset();
+        this.sortBy = this.checkedIds.size > 0 ? "modified" : "created";
         this.desc = true;
-        
         this.fetchData();
     }
 
@@ -353,7 +366,8 @@ export default class EditorUi extends Vue {
             } else {
                 this.checkedIds.delete(id);
             }
-            checkboxMain.indeterminate = this.checkedIds.size > 0 && this.checkedIds.size < this.data.length;
+            console.log(this.checkedIds);
+            this.calculateCheckboxMainStatus();
         } else {
             checkboxMain.indeterminate = false;
             if (checkboxMain.checked) {
@@ -397,16 +411,44 @@ export default class EditorUi extends Vue {
     }
 
     private onTableRowClicked(id: number) {
+        const availableIds = new Set(this.data.map((row) => row.id));
+
+        this.checkedIds.forEach((c) => {
+            if (!availableIds.has(c)) {
+                this.checkedIds.delete(c);
+            }
+        });
+
         if (this.checkedIds.has(id)) {
             this.checkedIds.delete(id);
         } else {
             this.checkedIds.add(id);
         }
+
+        this.calculateCheckboxMainStatus();
         this.$forceUpdate();
     }
 
     private getHtml(data: any, side: "front" | "back" | "note"): string {
         return quizDataToContent(data, side);
+    }
+
+    private calculateCheckboxMainStatus() {
+        const checkboxMain = this.$refs["checkbox.main"] as HTMLInputElement;
+        this.allCardsSelected = false;
+        checkboxMain.indeterminate = this.checkedIds.size > 0 && this.checkedIds.size < this.data.length;
+    }
+
+    private reset(clearSearchParams: boolean = true) {
+        if (clearSearchParams) {
+            this.q = "";
+            this.offset = 0;
+        }
+
+        this.allCardsSelected = false;
+        const checkboxMain = this.$refs["checkbox.main"] as HTMLInputElement;
+        checkboxMain.indeterminate = false;
+        this.checkedIds.clear();
     }
 
     @Watch("offset")
@@ -429,10 +471,7 @@ export default class EditorUi extends Vue {
         this.data = r.data;
         this.count = r.count;
 
-        this.allCardsSelected = false;
-        const checkboxMain = this.$refs["checkbox.main"] as HTMLInputElement;
-        checkboxMain.indeterminate = false;
-        this.checkedIds.clear();
+        this.reset(false);
 
         this.extraCols = [];
         for (const d of this.data) {
