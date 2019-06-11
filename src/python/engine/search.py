@@ -14,12 +14,16 @@ def parse_query(s: str) -> Tuple[dict, Any, Any]:
     sort_by = None
     desc = None
 
-    tokens = shlex_split(s)
+    s = remove_brackets(s)
+    if " OR " in s:
+        return {"$or": [parse_query(t)[0] for t in shlex_split(s, {" OR "})]}, None, None
+
+    tokens = shlex_split(s, {" "})
     token_result = []
 
     for t in tokens:
         expr_str = t[1:] if t[0] == "-" else t
-        expr = shlex_split(expr_str, {':', '>', '<', '=', '~'}, True)
+        expr = shlex_split(expr_str, {':', '>', '>=', '<', '<=', '=', '~'}, True)
 
         pre_result = None
 
@@ -173,7 +177,7 @@ def sorter(sort_by: str, desc: bool) -> Callable[[Any], bool]:
             return 0
 
     return functools.cmp_to_key(lambda x, y: -pre_cmp(dot_getter(x, sort_by), dot_getter(y, sort_by))
-    if desc else pre_cmp(dot_getter(x, sort_by), dot_getter(y, sort_by)))
+        if desc else pre_cmp(dot_getter(x, sort_by), dot_getter(y, sort_by)))
 
 
 def dot_getter(d: dict, k: str) -> Any:
@@ -199,32 +203,45 @@ def dot_getter(d: dict, k: str) -> Any:
     return v
 
 
-def shlex_split(s: str, split_token: Set[str] = None, keep_splitter: bool = False) -> List[str]:
-    if split_token is None:
-        split_token = {" "}
+def shlex_split(s: str, split_token: Set[str], keep_splitter: bool = False) -> List[str]:
+    s = remove_brackets(s)
 
     tokens = []
 
     new_token = ""
-    skip_reading = False
+    in_quote = False
+    in_bracket = False
+    to_skip = 0
 
     for i, c in enumerate(s):
-        if c == '"':
-            if i > 0 and s[i-1: i+1] == '\\"':
-                new_token += '"'
-            else:
-                skip_reading = not skip_reading
+        if c == '"' and (i == 0 or (i > 0 and s[i - 1] != "\\")):
+            in_quote = not in_quote
+            to_skip += 1
 
-            continue
+        elif not in_bracket and c == "(" and (i == 0 or (i > 0 and s[i - 1] != "\\")):
+            in_bracket = True
+            to_skip += 1
 
-        if c in split_token:
-            if new_token:
-                tokens.append(new_token)
-                new_token = ""
+        if not in_quote and not in_bracket:
+            for t in split_token:
+                if s[i: i + len(t)] == t and (i == 0 or (i > 0 and s[i - 1] != "\\")):
+                    if new_token:
+                        tokens.append(new_token)
+                        new_token = ""
 
-            if keep_splitter:
-                tokens.append(c)
+                    if keep_splitter:
+                        tokens.append(t)
 
+                    to_skip = len(t)
+                    break
+
+        else:
+            if in_bracket and c == ")" and (i == 0 or (i > 0 and s[i - 1] != "\\")):
+                in_bracket = False
+                to_skip += 1
+
+        if to_skip > 0:
+            to_skip -= 1
             continue
 
         new_token += c
@@ -233,6 +250,13 @@ def shlex_split(s: str, split_token: Set[str] = None, keep_splitter: bool = Fals
         tokens.append(new_token)
 
     return tokens
+
+
+def remove_brackets(s: str) -> str:
+    if len(s) >=2 and s[0] == "(" and s[-1] == ")":
+        return s[1:-1]
+
+    return s
 
 
 def _mongo_compare(v, v_obj: dict) -> bool:
