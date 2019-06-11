@@ -110,28 +110,29 @@ def r_quiz_build():
 def r_quiz_render():
     db = Config.DB
     c = dict(db.conn.execute("""
-    SELECT front, back, templateId, noteId
-    FROM card
-    WHERE id = ?
+    SELECT
+        c.front AS front,
+        c.back AS back,
+        mnemonic,
+        t.front AS tFront,
+        t.back AS tBack,
+        css,
+        js,
+        data
+    FROM card AS c
+    LEFT JOIN template AS t ON templateId = t.id
+    LEFT JOIN note AS n ON noteId = n.id
+    WHERE c.id = ?
     """, (request.json["id"],)).fetchone())
 
     if c["front"].startswith("@md5\n"):
-        t = db.conn.execute("""
-        SELECT front, back, css, js
-        FROM template
-        WHERE id = ?
-        """, (c["templateId"],)).fetchone()
+        if c.get("data"):
+            data = json.loads(c["data"])
+        else:
+            data = dict()
 
-        data = json.loads(db.conn.execute("""
-        SELECT data
-        FROM note
-        WHERE id = ?
-        """, (c["noteId"],)).fetchone()[0])
-
-        c["front"] = anki_mustache(t["front"], data)
-        c["back"] = anki_mustache(t["back"], data, t["front"])
-        c["css"] = t["css"]
-        c["js"] = t["js"]
+        c["front"] = anki_mustache(c["tFront"], data)
+        c["back"] = anki_mustache(c["tBack"], data, c["front"])
 
     return jsonify(c)
 

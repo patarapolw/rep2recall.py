@@ -255,7 +255,6 @@ export default class QuizUi extends Vue {
     }
 
     private async onEntrySaved(data: any) {
-        await fetchJSON("/api/editor/", {id: data.id, update: data}, "PUT");
         Object.assign(this.quizData, data);
         this.onQuizShowButtonClicked();
     }

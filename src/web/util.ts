@@ -28,15 +28,16 @@ export async function fetchJSON(url: string, data: any = {}, method: string = "P
                 body: JSON.stringify(data)
             });
 
+            let result = {} as any;
+
             try {
-                const result = await res.json();
+                result = await res.json();
                 if (result.error) {
                     await swal({
                         text: result.error,
                         icon: "error"
                     });
                 }
-                return result;
             } catch (e) {
                 await swal({
                     text: res.statusText,
@@ -44,6 +45,8 @@ export async function fetchJSON(url: string, data: any = {}, method: string = "P
                 });
                 return {error: e};
             }
+
+            return result;
         } catch (e) {
             console.error(e);
 
@@ -54,7 +57,7 @@ export async function fetchJSON(url: string, data: any = {}, method: string = "P
         }
     }
 
-    const r = await swal({
+    await swal({
         text: error,
         icon: "error"
     });

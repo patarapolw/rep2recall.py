@@ -90,6 +90,7 @@ function spawnServer() {
         "./pyserver")
     );
     s.stdout.pipe(process.stdout);
+    s.stderr.pipe(process.stderr);
 
     return s;
 }

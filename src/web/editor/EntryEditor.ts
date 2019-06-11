@@ -128,7 +128,7 @@ export default class EntryEditor extends Vue {
         if (this.entryId) {
             this.isLoading = true;
 
-            const data = await fetchJSON("/api/editor/", {q: {id: this.entryId}});
+            const data = await fetchJSON("/api/editor/", {cond: {id: this.entryId}});
             Vue.set(this, "data", data.data[0])
             this.cols.forEach((c) => {
                 if (c.type === "html") {
@@ -148,13 +148,14 @@ export default class EntryEditor extends Vue {
                 if (this.update[c.name] === undefined && !this.data[c.name]) {
                     normalizeArray(this.$refs.form).classList.add("was-validated");
                     evt.preventDefault();
-                    return;
+                    return {};
                 }
             }
         }
 
         if (Object.keys(this.update).length > 0) {
             if (this.entryId) {
+                console.log(this.entryId);
                 const r = await fetchJSON("/api/editor/", {id: this.entryId, update: this.update}, "PUT");
                 if (!r.error) {
                     await swal({
@@ -172,5 +173,7 @@ export default class EntryEditor extends Vue {
                 }
             }
         }
+
+        return this.update;
     }
 }

@@ -158,10 +158,6 @@ input, textarea {
     &.form-control {
         background-color: white !important;
     }
-
-    &[readonly] {
-        pointer-events: none;
-    }
 }
 
 pre {

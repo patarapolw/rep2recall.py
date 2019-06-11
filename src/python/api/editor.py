@@ -13,7 +13,10 @@ def r_editor():
     db = Config.DB
 
     if request.method == "POST":
-        cond, sort_by, desc = parse_query(r["q"])
+        if r.get("cond"):
+            cond, sort_by, desc = r["cond"], None, None
+        else:
+            cond, sort_by, desc = parse_query(r["q"])
 
         if sort_by is None:
             sort_by = r.get("sortBy", "deck")
