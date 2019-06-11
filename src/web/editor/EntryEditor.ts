@@ -73,10 +73,13 @@ import swal from "sweetalert";
                 "v-if": "data.data"
             }}, [
                 h("h4.mb-3", "Template data"),
-                h(".row.mb-3", [
-                    h("label.col-form-label.col-sm-2", "Source"),
+                h(".row.mb-3", {attrs: {
+                    "v-for": "c in hasSourceExtraCols",
+                    ":key": "c"
+                }}, [
+                    h("label.col-form-label.col-sm-2", "{{ c[0].toLocaleUpperCase() + c.substr(1) }}"),
                     h("input.form-control.col-sm-10", {attrs: {
-                        ":value": "data.source",
+                        ":value": "data[c]",
                         "readonly": ""
                     }})
                 ]),
@@ -105,6 +108,11 @@ export default class EntryEditor extends Vue {
 
     private readonly size = "lg";
     private readonly cols = Columns;
+    private readonly hasSourceExtraCols = [
+        "source",
+        // "model",
+        "template"
+    ]
 
     get activeCols() {
         return this.cols.filter((c) => !this.entryId ? c.newEntry !== false : true);

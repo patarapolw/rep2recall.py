@@ -14,14 +14,13 @@ export interface IColumn {
 }
 
 export const Columns: IColumn[] = [
-    {name: "deck", width: 150, type: "string", required: true, label: "Deck"},
-    {name: "template", width: 150, type: "string", newEntry: false, label: "Template"},
+    {name: "deck", width: 200, type: "string", required: true, label: "Deck"},
     {name: "front", width: 400, type: "html", required: true, label: "Front"},
     {name: "back", width: 400, type: "html", label: "Back"},
-    {name: "tag", width: 150, type: "tag", separator: " ", label: "Tags"},
+    {name: "tag", width: 200, type: "tag", separator: " ", label: "Tags"},
     {name: "note", width: 300, type: "html", label: "Note"},
-    {name: "srsLevel", width: 150, type: "number", label: "SRS Level", newEntry: false},
-    {name: "nextReview", width: 350, type: "datetime", label: "Next Review", newEntry: false}
+    {name: "srsLevel", width: 200, type: "number", label: "SRS Level", newEntry: false},
+    {name: "nextReview", width: 250, type: "datetime", label: "Next Review", newEntry: false}
 ];
 
 export const DateFormat = "Y-M-d H:i";

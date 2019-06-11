@@ -1,11 +1,12 @@
 import { Vue, Component, Watch } from "vue-property-decorator";
 import h from "hyperscript";
-import { Columns } from "./shared";
+import { Columns, DateFormat } from "./shared";
 import { fetchJSON, quizDataToContent } from "./util";
 import DatetimeNullable from "./editor/DatetimeNullable";
 import EntryEditor from "./editor/EntryEditor";
 import swal from "sweetalert";
 import toastr from "toastr";
+import flatpickr from "flatpickr";
 
 @Component({
     components: {DatetimeNullable, EntryEditor},
@@ -74,7 +75,7 @@ import toastr from "toastr";
                 })
             ])
         ]),
-        h("table.table.table-hover", {attrs: {
+        h("table.table.table-hover#editorTable", {attrs: {
             ":style": "{width: tableWidth + 'px'}"
         }}, [
             h("colgroup", [
@@ -88,12 +89,17 @@ import toastr from "toastr";
                 }}),
                 h("col", {attrs: {
                     "v-if": "hasSource",
-                    ":style": "{width: colWidths.extra + 'px'}"
+                    "v-for": "c in hasSourceExtraCols",
+                    ":style": "{width: colWidths.extra + 'px'}",
+                    ":key": "c"
                 }}),
                 h("col", {attrs: {
                     "v-for": "c in extraCols",
                     ":style": "{width: colWidths.extra + 'px'}",
                     ":key": "'data.' + c"
+                }}),
+                h("col", {attrs: {
+                    ":style": "{width: '150px'}"
                 }})
             ]),
             h("thead", [
@@ -120,21 +126,23 @@ import toastr from "toastr";
                         h("a", {attrs: {
                             "href": "#",
                             "v-on:click": "onTableHeaderClicked(c.name)"
-                        }}, "{{c.label}}"),
+                        }}, "{{ c.label }}"),
                         h("span", {attrs: {
                             "v-if": "sortBy === c.name"
                         }}, "{{ desc ? ' ▲' : ' ▼'}}")
                     ]),
                     h("th", {attrs: {
                         "v-if": "hasSource",
+                        "v-for": "c in hasSourceExtraCols",
+                        ":key": "c",
                         "scope": "col"
                     }}, [
                         h("a", {attrs: {
                             "href": "#",
-                            "v-on:click": "onTableHeaderClicked('source')"
-                        }}, "Source"),
+                            "v-on:click": "onTableHeaderClicked(c)"
+                        }}, "{{ c[0].toLocaleUpperCase() + c.substr(1) }}"),
                         h("span", {attrs: {
-                            "v-if": "sortBy === 'source'"
+                            "v-if": "sortBy === c"
                         }}, "{{ desc ? ' ▲' : ' ▼'}}")
                     ]),
                     h("th", {attrs: {
@@ -144,12 +152,14 @@ import toastr from "toastr";
                     }}, [
                         h("a", {attrs: {
                             "href": "#",
-                            "v-on:click": "onTableHeaderClicked('data.' + c)"
+                            "v-on:click": "onTableHeaderClicked('data.' + c)",
+                            ":style": "{display: 'inline-block', width: (colWidths.extra - 50) + 'px'}"
                         }}, "{{c}}"),
                         h("span", {attrs: {
                             "v-if": "sortBy === ('data.' + c)"
                         }}, "{{ desc ? ' ▲' : ' ▼'}}")
-                    ])
+                    ]),
+                    h("th")
                 ])
             ]),
             h("tbody", [
@@ -179,25 +189,38 @@ import toastr from "toastr";
                             "width": "350",
                             "frameBorder": "0"
                         }}),
-                        h("datetime-nullable", {attrs: {
-                            "v-else-if": "a[2].type === 'datetime'",
-                            "v-model": "a[1]",
-                            "width": "220",
-                            "readonly": "true"
-                        }}),
                         h(".wrapper", {attrs: {
                             "v-else": "",
                         }}, [
-                            h(".wrapped", "{{a[2].type === 'tag' ? a[1].join('\\n') : a[1]}}")
+                            h(".wrapped", {attrs: {
+                                "v-if": "a[2].type === 'datetime'"
+                            }}, "{{ stringifyDate(a[1]) }}"),
+                            h(".wrapped", {attrs: {
+                                "v-else-if": "a[2].type === 'tag'"
+                            }}, [
+                                h("p", {attrs: {
+                                    "v-for": "b in a[1]",
+                                    ":key": "b",
+                                    "v-html": "toHtmlAndBreak(b)"
+                                }})
+                            ]),
+                            h(".wrapped", {attrs: {
+                                "v-else": "",
+                                "v-html": "toHtmlAndBreak(a[1])"
+                            }})
                         ])
                     ]),
                     h("td", {attrs: {
-                        "v-if": "hasSource"
+                        "v-if": "hasSource",
+                        "v-for": "c in hasSourceExtraCols",
+                        ":key": "c"
                     }}, [
                         h(".wrapper", {attrs: {
                             ":style": "{width: (colWidths.extra - 20) + 'px'}"
                         }}, [
-                            h(".wrapped", "{{d.source}}")
+                            h(".wrapped", {attrs: {
+                                "v-html": "toHtmlAndBreak(d[c])"
+                            }})
                         ])
                     ]),
                     h("td", {attrs: {
@@ -207,9 +230,10 @@ import toastr from "toastr";
                         h(".wrapper", {attrs: {
                             ":style": "{width: (colWidths.extra - 20) + 'px'}"
                         }}, [
-                            h(".wrapped", "{{d.data[c]}}")
+                            h("pre.wrapped", "{{ d.data[c] }}")
                         ])
-                    ])
+                    ]),
+                    h("td")
                 ])
             ])
         ]),
@@ -246,6 +270,11 @@ export default class EditorUi extends Vue {
     private allCardsSelected = false;
     private isLoading = false;
 
+    private readonly hasSourceExtraCols = [
+        "source",
+        // "model",
+        "template"
+    ]
     private readonly colWidths = {
         checkbox: 50,
         extra: 250
@@ -275,7 +304,7 @@ export default class EditorUi extends Vue {
         return (
             this.colWidths.checkbox +
             this.cols.map((c) => c.width).reduce((a, v) => a + v) 
-            + (this.extraCols.length * this.colWidths.extra)) + 150
+            + ((this.extraCols.length + 2) * this.colWidths.extra));
     }
 
     private getOrderedDict(d: any): any[][] {
@@ -285,6 +314,16 @@ export default class EditorUi extends Vue {
         });
 
         return output;
+    }
+
+    private stringifyDate(d?: string): string {
+        return d ? flatpickr.formatDate(new Date(d), DateFormat) : "";
+    }
+
+    private toHtmlAndBreak(s?: string): string {
+        const div = document.createElement("div");
+        div.innerText = s || "";
+        return div.innerHTML.replace(/(\_)/g, "$1<wbr/>");
     }
 
     private async onEntrySaved() {
@@ -472,6 +511,7 @@ export default class EditorUi extends Vue {
         this.count = r.count;
 
         this.reset(false);
+        document.getElementById("editorTable")!.scrollIntoView();
 
         this.extraCols = [];
         for (const d of this.data) {

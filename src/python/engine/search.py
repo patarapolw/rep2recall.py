@@ -181,7 +181,7 @@ def dot_getter(d: dict, k: str) -> Any:
     for kn in k.split("."):
         if isinstance(v, dict):
             if kn == "*":
-                v = list(v.values())
+                v = [x for x in v.values() if not str(x).startswith("@nosearch\n")]
             else:
                 v = v.get(kn, dict())
         elif isinstance(v, list):
