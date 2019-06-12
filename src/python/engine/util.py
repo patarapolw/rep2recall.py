@@ -10,4 +10,4 @@ def anki_mustache(s: str, d: dict, front: str = "") -> str:
     s = re.sub(r"{{#(\S+)}}(.*){{\1}}", lambda m: m[2] if m[1] in d.keys() else "", s, flags=re.DOTALL)
     s = re.sub(r"{{[^}]+}}", "", s)
 
-    return s
+    return "@rendered\n" + s

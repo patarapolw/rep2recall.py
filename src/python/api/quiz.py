@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, Response
+from flask import Blueprint, request, jsonify
 from datetime import datetime
 from typing import List
 import json
@@ -6,7 +6,6 @@ import json
 from ..shared import Config
 from ..engine.search import mongo_filter, parse_query, parse_timedelta
 from ..engine.quiz import get_next_review, srs_map, repeat_review
-from ..engine.util import anki_mustache
 
 api_quiz = Blueprint("quiz", __name__, url_prefix="/api/quiz")
 
@@ -125,14 +124,11 @@ def r_quiz_render():
     WHERE c.id = ?
     """, (request.json["id"],)).fetchone())
 
-    if c["front"].startswith("@md5\n"):
-        if c.get("data"):
-            data = json.loads(c["data"])
-        else:
-            data = dict()
+    data = dict()
+    if c.get("data"):
+        data = json.loads(c["data"])
 
-        c["front"] = anki_mustache(c["tFront"], data)
-        c["back"] = anki_mustache(c["tBack"], data, c["front"])
+    c["data"] = data
 
     return jsonify(c)
 

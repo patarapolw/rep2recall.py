@@ -254,11 +254,17 @@ class Db:
         WHERE name = ?
         """, (name,)).fetchone()[0]
 
-    def update(self, c_id: int, u: dict = None):
+    def update(self, c_id: int, u: dict = None, commit: bool = True):
         if u is None:
             u = dict()
 
         u["modified"] = str(datetime.now())
+
+        if u.get("front", "").startswith("@rendered\n"):
+            u["tFront"] = u.pop("front")[len("@rendered"):]
+
+        if u.get("back", "").startswith("@rendered\n"):
+            u["tBack"] = u.pop("back")[len("@rendered"):]
 
         for k, v in u.items():
             if k == "deck":
@@ -277,22 +283,18 @@ class Db:
                 SET {k} = ?
                 WHERE id = ?
                 """, (v, c_id))
+            elif k in {"tFront", "tBack"}:
+                self.conn.execute(f"""
+                UPDATE template
+                SET {k[1:].lower()} = ?
+                WHERE template.id = (
+                    SELECT templateId FROM card WHERE card.id = ?
+                )
+                """, (v, c_id))
             elif k == "tag":
-                for tag_name in v:
-                    self.conn.execute("""
-                    INSERT INTO tag (name)
-                    VALUES (?)
-                    ON CONFLICT DO NOTHING
-                    """, (tag_name,))
-
-                    self.conn.execute("""
-                    INSERT INTO cardTag (cardId, tagId)
-                    VALUES (
-                        ?,
-                        (SELECT tag.id FROM tag WHERE tag.name = ?)
-                    )
-                    ON CONFLICT DO NOTHING
-                    """, (c_id, tag_name))
+                prev_tags = self.get_tags(c_id)
+                self.edit_tags([c_id], list(set(v) - prev_tags), True, False)
+                self.edit_tags([c_id], list(prev_tags - set(v)), False, False)
             elif k == "data":
                 data = json.loads(self.conn.execute("""
                 SELECT data FROM note
@@ -307,26 +309,15 @@ class Db:
                 )
                 """, (json.dumps({**data, **v}, ensure_ascii=False), c_id))
 
-        self.conn.commit()
+        if commit:
+            self.conn.commit()
 
-    def update_many(self, c_ids: List[int], u: dict):
-        for k, v in u.items():
-            if k == "deck":
-                deck_id = self.get_or_create_deck(v)
-                self.conn.execute(f"""
-                UPDATE card
-                SET deckId = ?
-                WHERE id IN ({",".join(["?"] * len(c_ids))})
-                """, (deck_id, *c_ids))
-            elif k in {
-                "nextReview", "created", "modified",
-                "front", "back", "mnemonic", "srsLevel"
-            }:
-                self.conn.execute(f"""
-                UPDATE card
-                SET {k} = ?
-                WHERE id IN ({",".join(["?"] * len(c_ids))})
-                """, (v, *c_ids))
+    def update_many(self, c_ids: List[int], u: dict = None):
+        if u is None:
+            u = dict()
+
+        for c_id in c_ids:
+            self.update(c_id, u, False)
 
         self.conn.commit()
 
@@ -344,15 +335,18 @@ class Db:
         """, c_ids)
         self.conn.commit()
 
-    def edit_tags(self, c_ids: List[int], tags: List[str], is_add: bool):
+    def get_tags(self, c_id):
+        return set(c[0] for c in self.conn.execute("""
+        SELECT name
+        FROM tag AS t
+        INNER JOIN cardTag AS ct ON ct.tagId = t.id
+        INNER JOIN card AS c ON ct.cardId = c.id
+        WHERE c.id = ?
+        """, (c_id,)))
+
+    def edit_tags(self, c_ids: List[int], tags: List[str], is_add: bool, commit: bool = True):
         for c_id in c_ids:
-            prev_tags = set(c[0] for c in self.conn.execute("""
-            SELECT name
-            FROM tag AS t
-            INNER JOIN cardTag AS ct ON ct.tagId = t.id
-            INNER JOIN card AS c ON ct.cardId = c.id
-            WHERE c.id = ?
-            """, (c_id,)))
+            prev_tags = self.get_tags(c_id)
 
             if is_add:
                 updated_tags = set(tags) - prev_tags
@@ -384,5 +378,7 @@ class Db:
                         t.name = ?
                     """, (c_id, t))
 
-        self.conn.commit()
-        self.update(c_ids)
+            self.update(c_id, None, False)
+
+        if commit:
+            self.conn.commit()

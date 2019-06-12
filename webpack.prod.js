@@ -1,6 +1,5 @@
 const path = require("path");
 const { web } = require("./webpack.common");
-const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = [
     {
@@ -39,11 +38,6 @@ module.exports = [
             __dirname: false,
             __filename: false,
         },
-        ...web,
-        plugins: [
-            new CopyPlugin([
-                { from: 'public', to: '.' }
-            ]),
-        ],
+        ...web
     }
 ]

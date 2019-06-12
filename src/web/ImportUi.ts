@@ -1,7 +1,6 @@
 import { Vue, Component, Watch } from "vue-property-decorator";
 import h from "hyperscript";
 import swal from "sweetalert";
-import { ServerPort } from "./shared";
 import io from "socket.io-client";
 
 @Component({
@@ -96,7 +95,7 @@ export default class ImportUi extends Vue {
                 max: 0
             });
             const { id } = JSON.parse(xhr.responseText);
-            const ws = io(`http://localhost:${ServerPort}`);
+            const ws = io(location.origin);
             let started = false;
 
             ws.on("connect", () => {
@@ -110,17 +109,18 @@ export default class ImportUi extends Vue {
             });
 
             ws.on("message", (msg: any) => {
-                console.log(msg);
                 try {
                     Vue.set(this, "progress", msg);
                     if (this.progress.error || !this.progress.text) {
                         ws.close();
                     }
-                } catch (e) {}
+                } catch (e) {
+                    console.log(msg);
+                }
             });
         };
 
-        xhr.open("POST", `http://localhost:${ServerPort}/api/io/import`);
+        xhr.open("POST", "/api/io/import");
         xhr.send(formData);
     }
 
