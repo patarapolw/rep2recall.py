@@ -1,6 +1,6 @@
 import showdown from "showdown";
-import { ServerPort } from "./shared";
 import swal from "sweetalert";
+import Vue from "vue";
 
 export function shuffle(a: any[]) {
     for (let i = a.length - 1; i > 0; i--) {
@@ -20,7 +20,7 @@ export async function fetchJSON(url: string, data: any = {}, method: string = "P
 
     while (new Date().getSeconds() - start < 10) {
         try {
-            const res = await fetch(new URL(url, `http://localhost:${ServerPort}`).href, {
+            const res = await fetch(url, {
                 method,
                 headers: {
                     "Content-Type": "application/json; charset=utf-8"
@@ -43,7 +43,7 @@ export async function fetchJSON(url: string, data: any = {}, method: string = "P
                     text: res.statusText,
                     icon: "error"
                 });
-                return {error: e};
+                return { error: e };
             }
 
             return result;
@@ -71,12 +71,6 @@ const anchorAttributes = {
     }
 };
 
-const fixLinks = {
-    type: "output",
-    regex: /((?:src|href)="\/)([^"]+)(")/g,
-    replace: `$1http://localhost:${ServerPort}/$2$3`
-}
-
 const furiganaParser = {
     type: "output",
     regex: /{([^}]+)}\(([^)]+)\)/g,
@@ -84,27 +78,61 @@ const furiganaParser = {
 }
 
 showdown.extension('anchorAttributes', anchorAttributes);
-showdown.extension('fixLinks', fixLinks);
 showdown.extension('furiganaParser', furiganaParser);
 const mdConverter = new showdown.Converter({
     tables: true,
-    extensions: ['anchorAttributes', 'fixLinks', 'furiganaParser']
+    extensions: ['anchorAttributes', 'furiganaParser']
 });
 
-export function md2html(s: string): string {
-    return mdConverter.makeHtml(s);
+export function escapeRegExp(s: string) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');  // $& means the whole matched string
+}
+
+export function fixData(d: any): any {
+    if (d.front.startsWith("@md5\n")) {
+        d.front = "@rendered\n" + ankiMustache(d.tFront, d);
+        d.back = "@rendered\n" + ankiMustache(d.tBack || "", d);
+    }
+
+    return d;
+}
+
+export function ankiMustache(s: string, d: any): string {
+    s = s.replace(/{{FrontSide}}/g, d.front || "");
+
+    const data = d.data || {};
+    for (const k of Object.keys(data)) {
+        s = s.replace(new RegExp(`{{(\\S+:)?${escapeRegExp(k)}}}`), data[k] || "");
+    }
+
+    s = s.replace(/{{#(\S+)}}(.*){{\1}}/gs, (m, p1, p2) => {
+        if (Object.keys(data).includes(p1)) {
+            return p2;
+        } else {
+            return "";
+        }
+    });
+
+    s = s.replace(/{{[^}]+}}/g, "");
+
+    return s;
+}
+
+export function md2html(s: string, d: any): string {
+    s = ankiMustache(s, d);
+    return mdConverter.makeHtml(s.replace(/@([^\n]+)\n/g, ""));
 }
 
 function fixHtml(s: string): string {
-    for (const fix of [fixLinks, furiganaParser]) {
+    for (const fix of [furiganaParser]) {
         s = s.replace(fix.regex, fix.replace)
     };
     return s;
 }
 
 export function html2md(s: string): string {
-    // return s;
-    return removeTag(s, "script");
+    return s;
+    // return removeTag(s, "script");
 }
 
 export function normalizeArray(item: any, forced: boolean = true) {
@@ -117,47 +145,38 @@ export function normalizeArray(item: any, forced: boolean = true) {
     return item;
 }
 
-export function quizDataToContent(data: any, side: "front" | "back" | "note" | "backAndNote"): string {
+export function quizDataToContent(
+    data: any,
+    side: "front" | "back" | "note" | "backAndNote" | null,
+    template?: string
+): string {
     function cleanHtml(s: string) {
-        const m = /^@([^\n]+)\n(.+)$/s.exec(s);
-        return m ? fixHtml(m[2]) : md2html(s);
-    }
+        const cleaned = s.replace(/@([^\n]+)\n/g, "");
 
-    function cleanCssJs(s: string, type: "css" | "js") {
-        const m = /^@([^\n]+)\n(.+)$/s.exec(s);
-        if (m) {
-            return m[1] === "raw" ? m[2] : (type === "css" ? `<style>${m[2]}</style>` : `<script>${m[2]}</script>`)
+        if (s.indexOf("@html\n") !== -1) {
+            return fixHtml(cleaned);
         } else {
-            return type === "css" ? `<style>${s}</style>` : `<script>${s}</script>`;
+            return md2html(cleaned, data);
         }
     }
 
+    function cleanCssJs(s: string, type: "css" | "js") {
+        const cleaned = s.replace(/@([^\n]+)\n/g, "");
+
+        return s.indexOf("@raw\n") !== -1 ? cleaned :
+            (type === "css" ? `<style>${cleaned}</style>` : `<script>${cleaned}</script>`);
+    }
+
+    data = fixData(data);
+
     return `
-    ${data.css ? cleanCssJs(data.css, "css") :`<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">`}
-    ${side === "backAndNote" ? 
-    cleanHtml(data.back || "") + "\n<br/>\n" + cleanHtml(data.note || "") : cleanHtml(data[side] || "")}
+    ${data.css ? cleanCssJs(data.css, "css") : `<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">`}
+    ${side === "backAndNote" ?
+            cleanHtml(data.back || "") + "\n<br/>\n" + cleanHtml(data.note || "") : cleanHtml(
+                (side ? data[side] : template) || ""
+            )}
     ${!data.js ? `<script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>` : cleanCssJs(data.js, "js")}
     `;
-}
-
-export function slowClickHandler(evt: any) {
-    // console.log(evt.originalEvent);
-    const duration = 100;
-
-    if (evt.originalEvent !== undefined) {
-        const $selector = $(evt.target);
-        // $selector.prop("disabled", true);
-
-        $selector.addClass("animated");
-        $selector.css({
-            "animation-duration": `${duration}ms`
-        });
-
-        setTimeout(() => {
-            // $selector.prop("disabled", false);
-            $selector.removeClass("animated");
-        }, duration);
-    }
 }
 
 export function slowClick($selector: JQuery) {
@@ -177,4 +196,32 @@ export function slowClick($selector: JQuery) {
 
 export function removeTag(s: string, tag: string): string {
     return s.replace(new RegExp(`<${tag}[^>]*>.*</${tag}>`, "gs"), "")
+}
+
+export function dotGetter(d: any, key: string): any {
+    const ks = key.split(".");
+    let result = d;
+    for (const k of ks) {
+        try {
+            result = result[k];
+        } catch (e) {
+            result = undefined;
+            break;
+        }
+    }
+    return result;
+}
+
+export function dotSetter(d: any, key: string, v: any) {
+    const ks = key.split(".");
+    const kLast = ks.splice(ks.length - 1, 1)[0];
+
+    let currentD = d;
+    for (const k of ks) {
+        if (!(currentD[k] && currentD[k].constructor === {}.constructor)) {
+            Vue.set(currentD, k, {});
+        }
+        currentD = currentD[k];
+    }
+    Vue.set(currentD, kLast, v);
 }

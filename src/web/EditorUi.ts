@@ -1,7 +1,7 @@
 import { Vue, Component, Watch } from "vue-property-decorator";
 import h from "hyperscript";
 import { Columns, DateFormat } from "./shared";
-import { fetchJSON, quizDataToContent } from "./util";
+import { fetchJSON, quizDataToContent, dotGetter, fixData } from "./util";
 import DatetimeNullable from "./editor/DatetimeNullable";
 import EntryEditor from "./editor/EntryEditor";
 import swal from "sweetalert";
@@ -83,20 +83,9 @@ import flatpickr from "flatpickr";
                     ":style": "{width: colWidths.checkbox + 'px'}",
                 }}),
                 h("col", {attrs: {
-                    "v-for": "c in cols",
-                    ":style": "{width: c.width + 'px'}",
+                    "v-for": "c in tableCols",
+                    ":style": "{width: (c.width || colWidths.extra) + 'px'}",
                     ":key": "c.name"
-                }}),
-                h("col", {attrs: {
-                    "v-if": "hasSource",
-                    "v-for": "c in hasSourceExtraCols",
-                    ":style": "{width: colWidths.extra + 'px'}",
-                    ":key": "c"
-                }}),
-                h("col", {attrs: {
-                    "v-for": "c in extraCols",
-                    ":style": "{width: colWidths.extra + 'px'}",
-                    ":key": "'data.' + c"
                 }}),
                 h("col", {attrs: {
                     ":style": "{width: '150px'}"
@@ -119,7 +108,7 @@ import flatpickr from "flatpickr";
                         ])
                     ]),
                     h("th", {attrs: {
-                        "v-for": "c in cols",
+                        "v-for": "c in tableCols",
                         ":key": "c.name",
                         "scope": "col"
                     }}, [
@@ -129,34 +118,6 @@ import flatpickr from "flatpickr";
                         }}, "{{ c.label }}"),
                         h("span", {attrs: {
                             "v-if": "sortBy === c.name"
-                        }}, "{{ desc ? ' ▲' : ' ▼'}}")
-                    ]),
-                    h("th", {attrs: {
-                        "v-if": "hasSource",
-                        "v-for": "c in hasSourceExtraCols",
-                        ":key": "c",
-                        "scope": "col"
-                    }}, [
-                        h("a", {attrs: {
-                            "href": "#",
-                            "v-on:click": "onTableHeaderClicked(c)"
-                        }}, "{{ c[0].toLocaleUpperCase() + c.substr(1) }}"),
-                        h("span", {attrs: {
-                            "v-if": "sortBy === c"
-                        }}, "{{ desc ? ' ▲' : ' ▼'}}")
-                    ]),
-                    h("th", {attrs: {
-                        "v-for": "c in extraCols",
-                        ":key": "'data.' + c",
-                        "scope": "col"
-                    }}, [
-                        h("a", {attrs: {
-                            "href": "#",
-                            "v-on:click": "onTableHeaderClicked('data.' + c)",
-                            ":style": "{display: 'inline-block', width: (colWidths.extra - 50) + 'px'}"
-                        }}, "{{c}}"),
-                        h("span", {attrs: {
-                            "v-if": "sortBy === ('data.' + c)"
                         }}, "{{ desc ? ' ▲' : ' ▼'}}")
                     ]),
                     h("th")
@@ -182,18 +143,14 @@ import flatpickr from "flatpickr";
                         "v-for": "a in getOrderedDict(d)",
                         ":key": "a[0]",
                     }}, [
-                        h("iframe.html-frame", {attrs: {
-                            "v-if": "a[2].type === 'html'",
-                            ":srcdoc": "getHtml(d, a[0])",
-                            "height": "150",
-                            "width": "350",
-                            "frameBorder": "0"
-                        }}),
-                        h(".wrapper", {attrs: {
-                            "v-else": "",
-                        }}, [
+                        h(".wrapper", [
+                            h("iframe.wrapped", {attrs: {
+                                "v-if": "a[2].type === 'html'",
+                                ":srcdoc": "getHtml(d, a[0])",
+                                "frameBorder": "0"
+                            }}),
                             h(".wrapped", {attrs: {
-                                "v-if": "a[2].type === 'datetime'"
+                                "v-else-if": "a[2].type === 'datetime'"
                             }}, "{{ stringifyDate(a[1]) }}"),
                             h(".wrapped", {attrs: {
                                 "v-else-if": "a[2].type === 'tag'"
@@ -208,29 +165,6 @@ import flatpickr from "flatpickr";
                                 "v-else": "",
                                 "v-html": "toHtmlAndBreak(a[1])"
                             }})
-                        ])
-                    ]),
-                    h("td", {attrs: {
-                        "v-if": "hasSource",
-                        "v-for": "c in hasSourceExtraCols",
-                        ":key": "c"
-                    }}, [
-                        h(".wrapper", {attrs: {
-                            ":style": "{width: (colWidths.extra - 20) + 'px'}"
-                        }}, [
-                            h(".wrapped", {attrs: {
-                                "v-html": "toHtmlAndBreak(d[c])"
-                            }})
-                        ])
-                    ]),
-                    h("td", {attrs: {
-                        "v-for": "c in extraCols",
-                        ":key": "'data.' + c"
-                    }}, [
-                        h(".wrapper", {attrs: {
-                            ":style": "{width: (colWidths.extra - 20) + 'px'}"
-                        }}, [
-                            h("pre.wrapped", "{{ d.data[c] }}")
                         ])
                     ]),
                     h("td")
@@ -255,9 +189,6 @@ import flatpickr from "flatpickr";
     ]).outerHTML
 })
 export default class EditorUi extends Vue {
-    private cols = Columns;
-    private extraCols: string[] = [];
-    private hasSource = false;
     private q = "";
     private offset = 0;
     private limit = 10;
@@ -265,16 +196,10 @@ export default class EditorUi extends Vue {
     private sortBy = "deck";
     private desc = false;
     private data: any[] = [];
-    private canFetch = true;
     private checkedIds: Set<number> = new Set();
     private allCardsSelected = false;
     private isLoading = false;
 
-    private readonly hasSourceExtraCols = [
-        "source",
-        // "model",
-        "template"
-    ]
     private readonly colWidths = {
         checkbox: 50,
         extra: 250
@@ -282,12 +207,6 @@ export default class EditorUi extends Vue {
 
     public mounted() {
         this.fetchData();
-    }
-
-    public updated() {
-        if (this.canFetch) {
-            this.fetchData();
-        }
     }
 
     get editorLabel() {
@@ -300,17 +219,51 @@ export default class EditorUi extends Vue {
         return `${from.toLocaleString()}-${to.toLocaleString()} of ${this.count.toLocaleString()}`;
     }
 
+    get tableCols() {
+        const cols = Columns.slice();
+        const extraCols = new Set<string>();
+
+        for (const d of this.data) {
+            if (d.data) {
+                for (const k of Object.keys(d.data)) {
+                    extraCols.add(k);
+                }
+            }
+        }
+
+        if (extraCols.size > 0) {
+            cols.push(...[
+                {
+                    name: "source",
+                    label: "Source"
+                },
+                {
+                    name: "template",
+                    label: "Template"
+                }
+            ]);
+        }
+
+        extraCols.forEach((c) => {
+            cols.push({
+                name: `data.${c}`,
+                label: c[0].toLocaleUpperCase() + c.substr(1)
+            });
+        });
+
+        return cols;
+    }
+
     get tableWidth(): number {
         return (
             this.colWidths.checkbox +
-            this.cols.map((c) => c.width).reduce((a, v) => a + v) 
-            + ((this.extraCols.length + 2) * this.colWidths.extra));
+            this.tableCols.map((c) => (c.width || this.colWidths.extra)).reduce((a, v) => a + v));
     }
 
     private getOrderedDict(d: any): any[][] {
         const output: any[][] = [];
-        this.cols.forEach((c) => {
-            output.push([c.name, d[c.name], c]);
+        this.tableCols.forEach((c) => {
+            output.push([c.name, dotGetter(d, c.name), c]);
         });
 
         return output;
@@ -326,7 +279,7 @@ export default class EditorUi extends Vue {
         return div.innerHTML.replace(/(\_)/g, "$1<wbr/>");
     }
 
-    private async onEntrySaved() {
+    private async onEntrySaved(update: any) {
         this.reset();
         this.sortBy = this.checkedIds.size > 0 ? "modified" : "created";
         this.desc = true;
@@ -494,8 +447,6 @@ export default class EditorUi extends Vue {
     @Watch("sortBy")
     @Watch("desc")
     private async fetchData() {
-        this.canFetch = false;
-
         if (isNaN(this.offset)) {
             this.offset = this.count - this.limit;
         } else if (this.offset < 0) {
@@ -507,23 +458,12 @@ export default class EditorUi extends Vue {
         const r = await fetchJSON("/api/editor/", {q: this.q, offset: this.offset, limit: this.limit, 
             sortBy: this.sortBy, desc: this.desc});
 
-        this.data = r.data;
+        this.data = r.data.map((d: any) => fixData(d));
         this.count = r.count;
 
         this.reset(false);
         document.getElementById("editorTable")!.scrollIntoView();
 
-        this.extraCols = [];
-        for (const d of this.data) {
-            if (d.data) {
-                for (const k of Object.keys(d.data)) {
-                    if (this.extraCols.indexOf(k) === -1) {
-                        this.extraCols.push(k);
-                    }
-                }
-            }
-        }
-        this.hasSource = (this.extraCols.length > 0);
         this.isLoading = false;
     }
 }

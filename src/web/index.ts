@@ -3,8 +3,6 @@ import "./index.scss";
 import Vue from "vue";
 import VueRouter from "vue-router";
 import BootstrapVue from "bootstrap-vue";
-// @ts-ignore
-import VueSimplemde from "vue-simplemde";
 import "bootstrap";
 import $ from "jquery";
 import QuizUi from "./QuizUi";
@@ -12,18 +10,15 @@ import EditorUi from "./EditorUi";
 import ImportUi from "./ImportUi";
 import "./contextmenu";
 import SettingsUi from "./SettingsUi";
-import { slowClickHandler } from "./util";
 
 $(() => {
     // @ts-ignore
-    $('.tooltip-enabled').tooltip();
-    $(document.body).on("click", "button", slowClickHandler);
+    $('.tooltip-enabled').tooltip({trigger: "hover"});
 });
 
 
 Vue.use(VueRouter);
 Vue.use(BootstrapVue);
-Vue.use(VueSimplemde);
 
 const router = new VueRouter({
     routes: [
@@ -38,28 +33,38 @@ const router = new VueRouter({
 const app = new Vue({
     router,
     template: h(".stretched", [
-        h(".navbar.float-left", [
-            h("router-link.far.fa-question-circle.tooltip-enabled.nav-icon", {
-                title: "Quiz",
-                attrs: {to: "/quiz"}
-            }),
-            h("router-link.far.fa-edit.tooltip-enabled.nav-icon", {
-                title: "Editor",
-                attrs: {to: "/editor"}
-            }),
-            h("router-link.fas.fa-file-import.tooltip-enabled.nav-icon", {
-                title: "Import",
-                attrs: {to: "/import"}
-            }),
-            h("router-link.fas.fa-cog.tooltip-enabled.nav-icon", {
-                title: "Settings",
-                attrs: {to: "/settings"}
-            }),
-            h("a.fab.fa-github.tooltip-enabled.nav-icon", {
-                title: "About",
-                href: "https://github.com/patarapolw/rep2recall-py",
-                target: "_blank"
-            })
+        h("ul.nav.flex-column", [
+            h("li.nav-item", [
+                h("router-link.far.fa-question-circle.nav-icon.nav-link.tooltip-enabled", {
+                    title: "Quiz",
+                    attrs: {to: "/quiz"}
+                })
+            ]),
+            h("li.nav-item", [
+                h("router-link.far.fa-edit.nav-icon.nav-link.tooltip-enabled", {
+                    title: "Editor",
+                    attrs: {to: "/editor"}
+                }),
+            ]),
+            h("li.nav-item", [
+                h("router-link.fas.fa-file-import.nav-icon.nav-link.tooltip-enabled", {
+                    title: "Import",
+                    attrs: {to: "/import"}
+                }),
+            ]),
+            h("li.nav-item", [
+                h("router-link.fas.fa-cog.nav-icon.nav-link.tooltip-enabled", {
+                    title: "Settings",
+                    attrs: {to: "/settings"}
+                }),
+            ]),
+            h("li.nav-item", [
+                h("a.fab.fa-github.nav-icon.nav-link.tooltip-enabled", {
+                    title: "About",
+                    href: "https://github.com/patarapolw/rep2recall-py",
+                    target: "_blank"
+                })
+            ])
         ]),
         h(".body", [
             h("router-view")

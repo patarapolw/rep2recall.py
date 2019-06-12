@@ -2,7 +2,6 @@ from flask import Blueprint, request, Response, jsonify
 
 from ..shared import Config
 from ..engine.search import mongo_filter, sorter, parse_query
-from ..engine.util import anki_mustache
 
 api_editor = Blueprint("editor", __name__, url_prefix="/api/editor")
 
@@ -28,7 +27,7 @@ def r_editor():
         all_data = sorted(filter(mongo_filter(cond), db.get_all()),
                           key=sorter(sort_by, desc))
         return jsonify({
-            "data": list(map(_editor_entry_post_process, all_data[offset: offset + r.get("limit", 10)])),
+            "data": all_data[offset: offset + r.get("limit", 10)],
             "count": len(all_data)
         })
 
@@ -70,12 +69,3 @@ def r_editor_edit_tags():
     Config.DB.edit_tags(d["ids"], d["tags"], d["isAdd"])
 
     return jsonify({"error": None})
-
-
-def _editor_entry_post_process(c: dict) -> dict:
-    if c["front"].startswith("@md5\n"):
-        data = c.get("data", dict())
-        c["front"] = anki_mustache(c["tFront"], data)
-        c["back"] = anki_mustache(c["tBack"], data, c["tFront"])
-
-    return c

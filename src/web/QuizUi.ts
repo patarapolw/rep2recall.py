@@ -49,11 +49,9 @@ import $ from "jquery";
         }}, [
             h("iframe", {attrs: {
                 ":srcdoc": "quizContent",
-                "height": "500",
-                "width": "450",
                 "frameBorder": "0"
             }}),
-            h(".float-right", [
+            h(".counter", [
                 h("small", "{{currentQuizIndex >= 0 ? ((currentQuizIndex + 1).toLocaleString() + ' of ' + quizIds.length.toLocaleString()) : ''}}")
             ]),
             h(".w-100.d-flex.justify-content-between", {attrs: {

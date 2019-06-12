@@ -1,9 +1,9 @@
 export interface IColumn {
     name: string;
-    width: number;
+    width?: number;
     readOnly?: boolean;
     label: string;
-    type?: "string" | "html" | "number" | "datetime" | "tag";
+    type?: "string" | "html" | "number" | "datetime" | "tag" | "multiline";
     newEntry?: boolean;
     editEntry?: boolean;
     separator?: string;
@@ -18,10 +18,9 @@ export const Columns: IColumn[] = [
     {name: "front", width: 400, type: "html", required: true, label: "Front"},
     {name: "back", width: 400, type: "html", label: "Back"},
     {name: "tag", width: 200, type: "tag", separator: " ", label: "Tags"},
-    {name: "note", width: 300, type: "html", label: "Note"},
+    {name: "mnemonic", width: 300, type: "html", label: "Mnemonic"},
     {name: "srsLevel", width: 200, type: "number", label: "SRS Level", newEntry: false},
     {name: "nextReview", width: 250, type: "datetime", label: "Next Review", newEntry: false}
 ];
 
 export const DateFormat = "Y-M-d H:i";
-export const ServerPort = 34972;

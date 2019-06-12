@@ -83,6 +83,13 @@
             }
         }
 
+        td {
+            ::-webkit-scrollbar {
+                width: 0px;  /* Remove scrollbar space */
+                background: transparent;  /* Optional: just make scrollbar invisible */
+            }
+        }
+
         .fixed-header-offset {
             height: $control-height;
         }
@@ -90,11 +97,14 @@
 
     .wrapper {
         overflow: scroll;
-        max-height: 150px;
+        height: 150px;
         max-width: 400px;
+        position: relative;
 
         .wrapped {
             word-break: break-word;
+            width: 100%;
+            height: 100%;
         }
     }
 }

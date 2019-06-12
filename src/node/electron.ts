@@ -2,10 +2,17 @@ import { app, BrowserWindow, Menu, MenuItemConstructorOptions, shell } from "ele
 import path from "path";
 import { spawn } from "child_process";
 import { ipcMain } from "electron";
+import waitOn from "wait-on";
+
+const ROOT_PATH = path.join(
+    process.versions["electron"] ? __dirname.replace("app.asar", "app.asar.unpacked") : __dirname,
+    ".."
+);
+process.env.ROOT_PATH = ROOT_PATH;
 
 let serverProcess = spawnServer();
-
 let mainWindow: Electron.BrowserWindow | null;
+const PORT = process.env.PORT || "34972";
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -17,7 +24,10 @@ function createWindow() {
     });
     mainWindow.maximize();
 
-    mainWindow.loadFile(path.join(__dirname, "index.html"));
+    mainWindow.loadFile(path.join(ROOT_PATH, "public/index.html"));
+    waitOn({resources: [`http://localhost:${PORT}`]}).then(() => {
+        mainWindow!.loadURL(`http://localhost:${PORT}`);
+    });
     // mainWindow.webContents.openDevTools();
 
     const openExternalLinksInOSBrowser = (event: any, url: string) => {
@@ -87,7 +97,8 @@ ipcMain.on("restart-server", () => {
 function spawnServer() {
     const s = spawn(path.join(
         process.versions["electron"] ? __dirname.replace("app.asar", "app.asar.unpacked") : __dirname,
-        "./pyserver")
+        "./pyserver"),
+        {env: process.env}
     );
     s.stdout.pipe(process.stdout);
     s.stderr.pipe(process.stderr);

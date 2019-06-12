@@ -2,7 +2,6 @@ import { Vue, Component, Prop, Watch } from "vue-property-decorator";
 import h from "hyperscript";
 import quizState from "./shared";
 import { normalizeArray } from "../util";
-import { ServerPort } from "../shared";
 
 interface ITreeViewStat {
     new: number;
@@ -87,10 +86,10 @@ export default class TreeviewItem extends Vue {
             new: () => this.startReview("new"),
             all: () => this.startReview("all"),
             exportDeck: () => {
-                location.href = `http://localhost:${ServerPort}/api/io/export?deck=${encodeURIComponent(this.data.fullName)}`;
+                location.href = `/api/io/export?deck=${encodeURIComponent(this.data.fullName)}`;
             },
             exportDeckAndReset: () => {
-                location.href = `http://localhost:${ServerPort}/api/io/export?deck=${encodeURIComponent(this.data.fullName)}&reset=true`;
+                location.href = `/api/io/export?deck=${encodeURIComponent(this.data.fullName)}&reset=true`;
             },
             delete: async () => {
                 if (await this.onDelete(this.data.fullName)) {

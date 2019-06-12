@@ -336,3 +336,7 @@ dmypy.json
 .vscode/
 *.lock
 release/
+/user.db
+/media/
+/tmp/
+/public/js/

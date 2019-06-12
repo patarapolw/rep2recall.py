@@ -6,8 +6,9 @@ module.exports = {
             index: "./src/web/index.ts"
         },
         output: {
-            path: path.resolve(__dirname, "dist"),
-            filename: "[name].min.js"
+            path: path.resolve(__dirname, "public/js"),
+            filename: "[name].min.js",
+            publicPath: "js/"
         },
         module: {
             rules: [{

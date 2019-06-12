@@ -79,3 +79,15 @@ small.button-label {
     width: 100px;
     display: block;
 }
+
+#quiz-modal {
+    .modal-body {
+        height: 600px;
+    }
+
+    .counter {
+        position: absolute;
+        right: 1em;
+        bottom: 1em;
+    }
+}
