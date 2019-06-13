@@ -85,7 +85,7 @@
     "js:dev": "rimraf public/js && webpack-dev-server --config webpack.dev.js",
     "py:dev": "poetry run python pyserver.py",
     "build": "yarn run js:build && yarn run py:build",
-    "js:build": "rimraf public/js && webpack --config webpack.prod.js",
+    "js:build": "rimraf public/js dist && webpack --config webpack.prod.js",
     "py:build": "poetry run pyinstaller -wF pyserver.py",
     "electron:start": "electron .",
     "electron:dev": "yarn run py:build && webpack --config webpack.prod.js --mode=development -w",
