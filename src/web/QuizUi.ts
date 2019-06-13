@@ -252,8 +252,10 @@ export default class QuizUi extends Vue {
         }
     }
 
-    private async onEntrySaved(data: any) {
-        Object.assign(this.quizData, data);
+    private async onEntrySaved(u: any) {
+        this.quizData.data = Object.assign(this.quizData.data || {}, u.data || {});
+        delete u.data;
+        Object.assign(this.quizData, u);
         this.onQuizShowButtonClicked();
     }
 

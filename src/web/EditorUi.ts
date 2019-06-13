@@ -358,7 +358,6 @@ export default class EditorUi extends Vue {
             } else {
                 this.checkedIds.delete(id);
             }
-            console.log(this.checkedIds);
             this.calculateCheckboxMainStatus();
         } else {
             checkboxMain.indeterminate = false;
@@ -460,6 +459,8 @@ export default class EditorUi extends Vue {
 
         this.data = r.data.map((d: any) => fixData(d));
         this.count = r.count;
+
+        console.log(this.data);
 
         this.reset(false);
         document.getElementById("editorTable")!.scrollIntoView();

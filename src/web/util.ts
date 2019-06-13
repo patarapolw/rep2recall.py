@@ -89,16 +89,19 @@ export function escapeRegExp(s: string) {
 }
 
 export function fixData(d: any): any {
-    if (d.front.startsWith("@md5\n")) {
+    if (["@md5\n", "@template\n", "@rendered\n"].some((c) => d.front.startsWith(c))) {
         d.front = "@rendered\n" + ankiMustache(d.tFront, d);
-        d.back = "@rendered\n" + ankiMustache(d.tBack || "", d);
+    }
+
+    if (["@md5\n", "@template\n", "@rendered\n"].some((c) => d.back.startsWith(c))) {
+        d.back = "@rendered\n" + ankiMustache(d.tBack, d);
     }
 
     return d;
 }
 
 export function ankiMustache(s: string, d: any): string {
-    s = s.replace(/{{FrontSide}}/g, d.front || "");
+    s = s.replace(/{{FrontSide}}/g, (d.front || "").replace(/@[^\n]+\n/g, ""));
 
     const data = d.data || {};
     for (const k of Object.keys(data)) {
@@ -180,7 +183,7 @@ export function quizDataToContent(
 }
 
 export function slowClick($selector: JQuery) {
-    const duration = 100;
+    const duration = 200;
 
     $selector.addClass("animated");
     $selector.css({

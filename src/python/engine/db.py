@@ -2,6 +2,9 @@ import sqlite3
 from typing import List
 import json
 from datetime import datetime
+import hashlib
+
+from .util import anki_mustache
 
 
 class Db:
@@ -259,12 +262,26 @@ class Db:
             u = dict()
 
         u["modified"] = str(datetime.now())
+        data = None
+        front = None
 
-        if u.get("front", "").startswith("@rendered\n"):
-            u["tFront"] = u.pop("front")[len("@rendered"):]
+        if u.get("front", "").startswith("@template\n"):
+            if data is None:
+                data = self.get_data(c_id)
+            u["tFront"] = u.pop("front")[len("@template\n"):]
 
-        if u.get("back", "").startswith("@rendered\n"):
-            u["tBack"] = u.pop("back")[len("@rendered"):]
+        if u.get("tFront"):
+            front = anki_mustache(u["tFront"], data)
+            u["front"] = "@md5\n" + hashlib.md5(front.encode()).hexdigest()
+
+        if u.get("back", "").startswith("@template\n"):
+            u["tBack"] = u.pop("back")[len("@template\n"):]
+            if front is None:
+                front = self.get_front(c_id)
+
+        if u.get("tBack"):
+            back = anki_mustache(u["tBack"], data, front)
+            u["back"] = "@md5\n" + hashlib.md5(back.encode()).hexdigest()
 
         for k, v in u.items():
             if k == "deck":
@@ -296,10 +313,8 @@ class Db:
                 self.edit_tags([c_id], list(set(v) - prev_tags), True, False)
                 self.edit_tags([c_id], list(prev_tags - set(v)), False, False)
             elif k == "data":
-                data = json.loads(self.conn.execute("""
-                SELECT data FROM note
-                WHERE note.id = (SELECT noteId FROM card WHERE card.id = ?)
-                """, (c_id,)).fetchone()[0])
+                if data is None:
+                    data = self.get_data(c_id)
 
                 self.conn.execute("""
                 UPDATE note
@@ -320,6 +335,32 @@ class Db:
             self.update(c_id, u, False)
 
         self.conn.commit()
+
+    def get_front(self, c_id: int) -> str:
+        front = self.conn.execute("""
+        SELECT front FROM card WHERE id = ?
+        """, (c_id,)).fetchone()[0]
+
+        if front.startswith("@md5\n"):
+            t_front, data = self.conn.execute("""
+            SELECT t.front, data
+            FROM card AS c
+            LEFT JOIN template AS t ON t.id = templateId
+            LEFT JOIN note AS n ON n.id = noteId
+            WHERE c.id = ?
+            """, (c_id,)).fetchone()
+
+            if t_front and data:
+                data = json.loads(data)
+                front = anki_mustache(t_front, data)
+
+        return front
+
+    def get_data(self, c_id: int) -> dict:
+        return json.loads(self.conn.execute("""
+        SELECT data FROM note
+        WHERE note.id = (SELECT noteId FROM card WHERE card.id = ?)
+        """, (c_id,)).fetchone()[0])
 
     def delete(self, c_id: int):
         self.conn.execute("""

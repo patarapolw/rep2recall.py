@@ -91,7 +91,7 @@ class Anki:
                 self.conn.execute("""
                 INSERT INTO templates (mid, name, qfmt, afmt)
                 VALUES (?, ?, ?, ?)
-                """, (int(m["id"]), t["name"], t["qfmt"], t["afmt"]))
+                """, (int(m["id"]), t["name"], "@html\n" + t["qfmt"], "@html\n" + t["afmt"]))
         self.conn.commit()
 
     def close(self):
@@ -166,8 +166,8 @@ class Anki:
             """, (
                 t["tname"],
                 t["mname"],
-                "@html\n" + self._convert_link(t["qfmt"], media_name_to_id),
-                "@html\n" + self._convert_link(t["afmt"], media_name_to_id),
+                self._convert_link(t["qfmt"], media_name_to_id),
+                self._convert_link(t["afmt"], media_name_to_id),
                 self._convert_link(t["css"], media_name_to_id),
                 source_id
             ))
@@ -182,6 +182,7 @@ class Anki:
             m.name AS mname,
             d.name AS deck,
             qfmt,
+            afmt,
             tags
         FROM cards AS c
         INNER JOIN decks AS d ON d.id = did
@@ -206,11 +207,13 @@ class Anki:
             if front == anki_mustache(n["qfmt"], dict()):
                 continue
 
-            front = f"@md5\n{hashlib.md5(front.encode()).hexdigest()}"
+            front = "@md5\n" + hashlib.md5(front.encode()).hexdigest()
             if front in front_set:
                 continue
 
             front_set.add(front)
+            back = anki_mustache(n["afmt"], data, front)
+            back = "@md5\n" + hashlib.md5(back.encode()).hexdigest()
 
             db.insert_many([{
                 "deck": n["deck"].replace("::", "/"),
@@ -219,6 +222,7 @@ class Anki:
                 "entry": f"{self.filename}/{n['mname']}/{vs[0]}",
                 "data": data,
                 "front": front,
+                "back": back,
                 "tag": [x for x in n["tags"].split(" ") if x],
                 "sourceId": source_id
             }])

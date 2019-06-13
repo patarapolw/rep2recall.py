@@ -1,4 +1,4 @@
-from flask import Flask, Response, jsonify, redirect
+from flask import Flask, jsonify, redirect
 from flask_socketio import SocketIO
 from flask_cors import CORS
 from send2trash import send2trash
@@ -33,7 +33,7 @@ def r_index():
 def r_reset():
     Config.DB.close()
     send2trash(Config.COLLECTION)
-    return Response(status=201)
+    return jsonify({"error": None}), 201
 
 
 @app.errorhandler(sqlite3.Error)
