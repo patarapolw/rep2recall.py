@@ -239,7 +239,7 @@ class Db:
             INNER JOIN cardTag AS ct ON ct.tagId = tag.id
             WHERE ct.cardId = ?
             """, (item["id"],))]
-            item["data"] = json.loads(item["data"] if item["data"] else "{}")
+            item["data"] = json.loads(item["data"] if item["data"] else "[]")
             item["stat"] = json.loads(item["stat"] if item["stat"] else "{}")
             items.append(item)
 
@@ -316,13 +316,23 @@ class Db:
                 if data is None:
                     data = self.get_data(c_id)
 
+                is_new = True
+                for i, d in enumerate(data):
+                    if d["key"] == v["key"]:
+                        data[i]["value"] = v["value"]
+                        is_new = False
+                        break
+
+                if is_new:
+                    data.append(v)
+
                 self.conn.execute("""
                 UPDATE note
                 SET data = ?
                 WHERE note.id = (
                     SELECT noteId FROM card WHERE card.id = ?
                 )
-                """, (json.dumps({**data, **v}, ensure_ascii=False), c_id))
+                """, (json.dumps(data, ensure_ascii=False), c_id))
 
         if commit:
             self.conn.commit()
@@ -356,7 +366,7 @@ class Db:
 
         return front
 
-    def get_data(self, c_id: int) -> dict:
+    def get_data(self, c_id: int) -> List[dict]:
         return json.loads(self.conn.execute("""
         SELECT data FROM note
         WHERE note.id = (SELECT noteId FROM card WHERE card.id = ?)

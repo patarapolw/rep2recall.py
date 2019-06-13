@@ -201,10 +201,15 @@ class Anki:
 
             vs = n["values"].split("\x1f")
             ks = n["keys"].split("\x1f")
-            data = dict(zip(ks, vs))
+            data = []
+            for i_k, k in enumerate(ks):
+                data.append({
+                    "key": k,
+                    "value": vs[i_k]
+                })
 
             front = anki_mustache(n["qfmt"], data)
-            if front == anki_mustache(n["qfmt"], dict()):
+            if front == anki_mustache(n["qfmt"]):
                 continue
 
             front = "@md5\n" + hashlib.md5(front.encode()).hexdigest()
@@ -224,7 +229,10 @@ class Anki:
                 "front": front,
                 "back": back,
                 "tag": [x for x in n["tags"].split(" ") if x],
-                "sourceId": source_id
+                "sourceId": source_id,
+                "tData": {
+                    "sequence": ks
+                }
             }])
 
     @staticmethod

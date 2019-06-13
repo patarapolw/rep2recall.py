@@ -117,7 +117,7 @@ def r_quiz_render():
         t.back AS tBack,
         css,
         js,
-        data
+        n.data AS data
     FROM card AS c
     LEFT JOIN template AS t ON templateId = t.id
     LEFT JOIN note AS n ON noteId = n.id

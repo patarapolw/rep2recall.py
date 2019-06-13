@@ -100,16 +100,23 @@ export function fixData(d: any): any {
     return d;
 }
 
+export interface IKv {
+    key: string,
+    value: string
+}
+
 export function ankiMustache(s: string, d: any): string {
     s = s.replace(/{{FrontSide}}/g, (d.front || "").replace(/@[^\n]+\n/g, ""));
 
-    const data = d.data || {};
-    for (const k of Object.keys(data)) {
-        s = s.replace(new RegExp(`{{(\\S+:)?${escapeRegExp(k)}}}`), data[k] || "");
+    const data: IKv[] = d.data || [];
+    for (const d of data) {
+        s = s.replace(new RegExp(`{{(\\S+:)?${escapeRegExp(d.key)}}}`), d.value);
     }
 
+    const keys = data.map((d) => d.key);
+
     s = s.replace(/{{#(\S+)}}(.*){{\1}}/gs, (m, p1, p2) => {
-        if (Object.keys(data).includes(p1)) {
+        if (keys.includes(p1)) {
             return p2;
         } else {
             return "";
@@ -202,29 +209,39 @@ export function removeTag(s: string, tag: string): string {
 }
 
 export function dotGetter(d: any, key: string): any {
-    const ks = key.split(".");
-    let result = d;
-    for (const k of ks) {
-        try {
-            result = result[k];
-        } catch (e) {
-            result = undefined;
-            break;
+    const m = /^data\.(.+)$/.exec(key);
+    if (m) {
+        for (const it of d.data || []) {
+            if (it.key === m[1]) {
+                return it.value;
+            }
         }
     }
-    return result;
+
+    return d[key];
 }
 
 export function dotSetter(d: any, key: string, v: any) {
-    const ks = key.split(".");
-    const kLast = ks.splice(ks.length - 1, 1)[0];
+    const m = /^data\.(.+)$/.exec(key);
+    let isSet = false;
 
-    let currentD = d;
-    for (const k of ks) {
-        if (!(currentD[k] && currentD[k].constructor === {}.constructor)) {
-            Vue.set(currentD, k, {});
+    if (m) {
+        for (const it of d.data || []) {
+            if (it.key === m[1]) {
+                it.value = v;
+                isSet = true;
+            }
         }
-        currentD = currentD[k];
+        if (!isSet) {
+            if (!d.data) {
+                Vue.set(d, "data", []);
+            }
+            d.data.push({
+                key,
+                value: v
+            });
+        }
+    } else {
+        Vue.set(d, key, v);
     }
-    Vue.set(currentD, kLast, v);
 }

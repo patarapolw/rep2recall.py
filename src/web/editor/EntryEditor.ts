@@ -2,7 +2,7 @@ import { Vue, Component, Prop, Emit } from "vue-property-decorator";
 import h from "hyperscript";
 import { Columns, IColumn } from "../shared";
 import DatetimeNullable from "./DatetimeNullable";
-import { fetchJSON, normalizeArray, dotGetter, dotSetter, fixData } from "../util";
+import { fetchJSON, normalizeArray, dotGetter, dotSetter, fixData, IKv } from "../util";
 import TagEditor from "./TagEditor";
 import swal from "sweetalert";
 import SimpleMde from "./SimpleMde";
@@ -98,15 +98,9 @@ export default class EntryEditor extends Vue {
         const cols = Columns.filter((c) => !this.entryId ? c.newEntry !== false : true) as Array<IColumn | null>;
 
         if (this.entryId) {
-            const extraCols = new Set<string>();
+            const extraCols: string[] = (this.data.data || []).map((d: IKv) => d.key);
 
-            if (this.data.data) {
-                for (const k of Object.keys(this.data.data)) {
-                    extraCols.add(k);
-                }
-            }
-
-            if (extraCols.size > 0) {
+            if (extraCols.length > 0) {
                 cols.push(...[
                     null,
                     {

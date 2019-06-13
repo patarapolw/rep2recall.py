@@ -221,17 +221,19 @@ export default class EditorUi extends Vue {
 
     get tableCols() {
         const cols = Columns.slice();
-        const extraCols = new Set<string>();
+        const extraCols: string[] = [];
 
         for (const d of this.data) {
             if (d.data) {
-                for (const k of Object.keys(d.data)) {
-                    extraCols.add(k);
+                for (const it of d.data) {
+                    if (!extraCols.includes(it.key)) {
+                        extraCols.push(it.key);
+                    }
                 }
             }
         }
 
-        if (extraCols.size > 0) {
+        if (extraCols.length > 0) {
             cols.push(...[
                 {
                     name: "source",

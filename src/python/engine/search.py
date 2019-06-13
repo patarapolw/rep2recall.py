@@ -35,7 +35,7 @@ def parse_query(s: str) -> Tuple[dict, Any, Any]:
                 else:
                     or_cond.append({a: expr[0]})
 
-            or_cond.append({"data.*": {"$regex": re.escape(expr[0])}})
+            or_cond.append({"@*": {"$regex": re.escape(expr[0])}})
 
             pre_result = {"$or": or_cond}
 
@@ -181,17 +181,21 @@ def sorter(sort_by: str, desc: bool) -> Callable[[Any], bool]:
 
 
 def dot_getter(d: dict, k: str) -> Any:
+    if k[0] == "@":
+        return data_getter(d, k[1:])
+
     v = d
+
     for kn in k.split("."):
         if isinstance(v, dict):
             if kn == "*":
-                v = [x for x in v.values() if not str(x).startswith("@nosearch\n")]
+                v = list(v.values())
             else:
                 v = v.get(kn, dict())
         elif isinstance(v, list):
             try:
                 v = v[int(kn)]
-            except (ValueError, IndexError):
+            except (IndexError, ValueError):
                 v = None
                 break
         else:
@@ -200,7 +204,36 @@ def dot_getter(d: dict, k: str) -> Any:
     if isinstance(v, dict) and len(v) == 0:
         v = None
 
+    data = data_getter(d, k)
+    if v is not None:
+        if isinstance(data, list):
+            if isinstance(v, list):
+                v = [*v, *data]
+            else:
+                v = [v, *data]
+        else:
+            if isinstance(v, list):
+                v = [*v, data]
+            else:
+                v = [v, data]
+    else:
+        v = data
+
     return v
+
+
+def data_getter(d: dict, k: str) -> Union[str, None]:
+    try:
+        if k == "*":
+            return [v0["value"] for v0 in d["data"] if not v0["value"].startswith("@nosearch\n")]
+        else:
+            for v0 in d["data"]:
+                if v0["key"] == k:
+                    return v0["value"]
+    except AttributeError:
+        pass
+
+    return None
 
 
 def shlex_split(s: str, split_token: Set[str], keep_splitter: bool = False) -> List[str]:
