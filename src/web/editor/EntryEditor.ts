@@ -68,6 +68,16 @@ import SimpleMde from "./SimpleMde";
                 h("h4.mb-3", {attrs: {
                     "v-else": ""
                 }}, "Template data")
+            ]),
+            h(".col-12.mb-3", {attrs: {
+                "v-if": "activeCols.indexOf(null) !== -1"
+            }}, [
+                h(".row", [
+                    h("input.form-control.col-sm-4.no-border", {attrs: {
+                        "v-on:keypress": "onExtraRowInput",
+                        "placeholder": "Type here to add more keys."
+                    }}),
+                ])
             ])
         ])
     ]).outerHTML
@@ -80,12 +90,6 @@ export default class EntryEditor extends Vue {
     private data: any = {};
     private update: any = {};
     private isLoading = false;
-
-    private readonly hasSourceExtraCols = [
-        "source",
-        // "model",
-        "template"
-    ]
 
     private dotGetter = dotGetter;
     private dotSetter = dotSetter;
@@ -136,6 +140,17 @@ export default class EntryEditor extends Vue {
         }
 
         return v;
+    }
+
+    private onExtraRowInput(evt: any) {
+        const k = evt.target.value;
+
+        if (evt.key === "Enter" && k) {
+            if (!Object.keys(this.data.data).includes(k)) {
+                Vue.set(this.data.data, evt.target.value, "");
+            }
+            evt.target.value = "";
+        }
     }
     
     private async onModalShown() {

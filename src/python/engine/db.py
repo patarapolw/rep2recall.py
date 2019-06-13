@@ -1,5 +1,5 @@
 import sqlite3
-from typing import List
+from typing import List, Iterable
 import json
 from datetime import datetime
 import hashlib
@@ -310,8 +310,8 @@ class Db:
                 """, (v, c_id))
             elif k == "tag":
                 prev_tags = self.get_tags(c_id)
-                self.edit_tags([c_id], list(set(v) - prev_tags), True, False)
-                self.edit_tags([c_id], list(prev_tags - set(v)), False, False)
+                self.edit_tags([c_id], set(v) - prev_tags, True, False)
+                self.edit_tags([c_id], prev_tags - set(v), False, False)
             elif k == "data":
                 if data is None:
                     data = self.get_data(c_id)
@@ -385,7 +385,7 @@ class Db:
         WHERE c.id = ?
         """, (c_id,)))
 
-    def edit_tags(self, c_ids: List[int], tags: List[str], is_add: bool, commit: bool = True):
+    def edit_tags(self, c_ids: List[int], tags: Iterable[str], is_add: bool, commit: bool = True):
         for c_id in c_ids:
             prev_tags = self.get_tags(c_id)
 
@@ -412,11 +412,10 @@ class Db:
 
                 for t in sorted(updated_tags):
                     self.conn.execute("""
-                    DELETE FROM cardTag AS ct
-                    INNER JOIN tag AS t WHERE t.id = ct.tagId
+                    DELETE FROM cardTag
                     WHERE
                         cardId = ? AND
-                        t.name = ?
+                        tagId = (SELECT id FROM tag WHERE name = ?)
                     """, (c_id, t))
 
             self.update(c_id, None, False)

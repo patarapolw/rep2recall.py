@@ -88,9 +88,9 @@ import $ from "jquery";
                 ]),
                 h("div", {style: {width: "50px"}}, [
                     h("b-button.float-right.quiz-next", {attrs: {
-                        "v-if": "quizIds.length > 0",
+                        "v-if": "quizIds.length > 0 && currentQuizIndex < quizIds.length - 1",
                         "v-on:click": "onQuizNextButtonClicked",
-                        ":variant": "currentQuizIndex < quizIds.length - 1 ? 'secondary' : 'success'"
+                        "variant": "secondary"
                     }}, ">")
                 ])
             ])
