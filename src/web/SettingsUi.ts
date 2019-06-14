@@ -13,7 +13,7 @@ import swal from "sweetalert";
                 "v-on:click": "openMediaFolder"
             }}, "{{ mediaFolder }}"),
             h("span", " as "),
-            h("code", "/filename.ext")
+            h("code", "/media/filename.ext")
         ]),
         h("h3.mt-3.danger", "Reset user database"),
         h(".row", [

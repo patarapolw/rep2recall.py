@@ -140,7 +140,7 @@ def mongo_filter(cond: Union[str, dict]) -> Callable[[dict], bool]:
 
 
 def parse_timedelta(s: str) -> timedelta:
-    if s == "now":
+    if s == "NOW":
         return timedelta()
 
     m = re.search("([-+]?\\d+)(\\S*)", s)
@@ -176,11 +176,11 @@ def sorter(sort_by: str, desc: bool) -> Callable[[Any], bool]:
         else:
             return 0
 
-    return functools.cmp_to_key(lambda x, y: -pre_cmp(dot_getter(x, sort_by), dot_getter(y, sort_by))
-        if desc else pre_cmp(dot_getter(x, sort_by), dot_getter(y, sort_by)))
+    return functools.cmp_to_key(lambda x, y: -pre_cmp(dot_getter(x, sort_by, False), dot_getter(y, sort_by, False))
+        if desc else pre_cmp(dot_getter(x, sort_by, False), dot_getter(y, sort_by, False)))
 
 
-def dot_getter(d: dict, k: str) -> Any:
+def dot_getter(d: dict, k: str, get_data: bool = True) -> Any:
     if k[0] == "@":
         return data_getter(d, k[1:])
 
@@ -204,31 +204,39 @@ def dot_getter(d: dict, k: str) -> Any:
     if isinstance(v, dict) and len(v) == 0:
         v = None
 
-    data = data_getter(d, k)
-    if v is not None:
-        if isinstance(data, list):
-            if isinstance(v, list):
-                v = [*v, *data]
+    if get_data and k not in {"nextReview", "srsLevel"}:
+        data = data_getter(d, k)
+        if data is not None:
+            if v is not None:
+                if isinstance(data, list):
+                    if isinstance(v, list):
+                        v = [*v, *data]
+                    elif v is not None:
+                        v = [v, *data]
+                    else:
+                        v = data
+                else:
+                    if isinstance(v, list):
+                        v = [*v, data]
+                    elif v is not None:
+                        v = [v, data]
+                    else:
+                        v = data
             else:
-                v = [v, *data]
-        else:
-            if isinstance(v, list):
-                v = [*v, data]
-            else:
-                v = [v, data]
-    else:
-        v = data
+                v = data
 
     return v
 
 
 def data_getter(d: dict, k: str) -> Union[str, None]:
+    k = k.lower()
+
     try:
         if k == "*":
             return [v0["value"] for v0 in d["data"] if not v0["value"].startswith("@nosearch\n")]
         else:
             for v0 in d["data"]:
-                if v0["key"] == k:
+                if v0["key"].lower() == k:
                     return v0["value"]
     except AttributeError:
         pass

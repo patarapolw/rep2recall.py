@@ -209,7 +209,7 @@ export function removeTag(s: string, tag: string): string {
 }
 
 export function dotGetter(d: any, key: string): any {
-    const m = /^data\.(.+)$/.exec(key);
+    const m = /^@(.+)$/.exec(key);
     if (m) {
         for (const it of d.data || []) {
             if (it.key === m[1]) {
@@ -222,7 +222,7 @@ export function dotGetter(d: any, key: string): any {
 }
 
 export function dotSetter(d: any, key: string, v: any) {
-    const m = /^data\.(.+)$/.exec(key);
+    const m = /^@(.+)$/.exec(key);
     let isSet = false;
 
     if (m) {
@@ -237,7 +237,7 @@ export function dotSetter(d: any, key: string, v: any) {
                 Vue.set(d, "data", []);
             }
             d.data.push({
-                key,
+                key: m[1],
                 value: v
             });
         }

@@ -116,7 +116,7 @@ export default class EntryEditor extends Vue {
 
             extraCols.forEach((c) => {
                 cols.push({
-                    name: `data.${c}`,
+                    name: `@${c}`,
                     label: c[0].toLocaleUpperCase() + c.substr(1),
                     type: "multiline"
                 });
@@ -140,9 +140,19 @@ export default class EntryEditor extends Vue {
         const k = evt.target.value;
 
         if (evt.key === "Enter" && k) {
-            if (!Object.keys(this.data.data).includes(k)) {
-                Vue.set(this.data.data, evt.target.value, "");
+            let toAdd = true;
+            for (const it of this.data.data) {
+                if (it.key === k) {
+                    toAdd = false;
+                }
             }
+            if (toAdd) {
+                this.data.data.push({
+                    key: k,
+                    value: ""
+                });
+            }
+
             evt.target.value = "";
         }
     }
@@ -178,7 +188,6 @@ export default class EntryEditor extends Vue {
 
         if (Object.keys(this.update).length > 0) {
             if (this.entryId) {
-                console.log(this.entryId);
                 const r = await fetchJSON("/api/editor/", {id: this.entryId, update: this.update}, "PUT");
                 if (!r.error) {
                     await swal({

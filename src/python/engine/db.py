@@ -316,15 +316,16 @@ class Db:
                 if data is None:
                     data = self.get_data(c_id)
 
-                is_new = True
-                for i, d in enumerate(data):
-                    if d["key"] == v["key"]:
-                        data[i]["value"] = v["value"]
-                        is_new = False
-                        break
+                for vn in v:
+                    is_new = True
+                    for i, d in enumerate(data):
+                        if d["key"] == vn["key"]:
+                            data[i]["value"] = vn["value"]
+                            is_new = False
+                            break
 
-                if is_new:
-                    data.append(v)
+                    if is_new:
+                        data.append(vn)
 
                 self.conn.execute("""
                 UPDATE note

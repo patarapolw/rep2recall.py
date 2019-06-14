@@ -248,7 +248,7 @@ export default class EditorUi extends Vue {
 
         extraCols.forEach((c) => {
             cols.push({
-                name: `data.${c}`,
+                name: `@${c}`,
                 label: c[0].toLocaleUpperCase() + c.substr(1)
             });
         });
@@ -461,8 +461,6 @@ export default class EditorUi extends Vue {
 
         this.data = r.data.map((d: any) => fixData(d));
         this.count = r.count;
-
-        console.log(this.data);
 
         this.reset(false);
         document.getElementById("editorTable")!.scrollIntoView();

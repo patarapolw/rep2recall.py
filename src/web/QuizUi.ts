@@ -219,11 +219,15 @@ export default class QuizUi extends Vue {
             this.currentQuizIndex += 1;
             await this.renderQuizContent();
         } else {
-            await swal({
+            swal({
                 text: "Quiz is done!",
-                icon: "success"
+                icon: "success",
+                buttons: [true, true]
+            }).then((r) => {
+                if (r) {
+                    this.$bvModal.hide("quiz-modal");
+                }
             });
-            this.$bvModal.hide("quiz-modal");
         }
     }
 
