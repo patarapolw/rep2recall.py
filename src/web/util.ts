@@ -197,6 +197,7 @@ export function slowClick($selector: JQuery) {
         "animation-duration": `${duration}ms`
     });
     setTimeout(() => {
+        $selector.prop("disabled", false);
         $selector.click();
         $selector.removeClass("animated");
     }, duration);
