@@ -10,10 +10,16 @@ import EditorUi from "./EditorUi";
 import ImportUi from "./ImportUi";
 import "./contextmenu";
 import SettingsUi from "./SettingsUi";
+import { slowClick } from "./util";
 
 $(() => {
     // @ts-ignore
     $('.tooltip-enabled').tooltip({trigger: "hover"});
+    $(document.body).on("mousedown", "button", (evt) => {
+        const $this = $(evt.target);
+        $this.prop("disabled", true);
+        slowClick($this);
+    })
 });
 
 
