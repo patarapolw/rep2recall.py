@@ -2,6 +2,7 @@ from flask import Blueprint, request, Response, jsonify
 
 from ..shared import Config
 from ..engine.search import mongo_filter, sorter, parse_query
+from ..engine.util import anki_mustache
 
 api_editor = Blueprint("editor", __name__, url_prefix="/api/editor")
 
@@ -23,9 +24,26 @@ def r_editor():
         if desc is None:
             desc = r.get("desc", False)
 
+        if "is:duplicate" in r.get("q", ""):
+            counter = dict()
+            for data in db.get_all():
+                if data.get("tFront"):
+                    counter.setdefault(anki_mustache(data["tFront"], data.get("data", dict())), []).append(data)
+                else:
+                    counter.setdefault(data["front"], []).append(data)
+
+            dup = []
+            for k, v in counter.items():
+                if len(v) > 1:
+                    dup.extend(v)
+
+            all_data = sorted(dup, key=sorter(sort_by, desc))
+        else:
+            all_data = sorted(filter(mongo_filter(cond), db.get_all()),
+                              key=sorter(sort_by, desc))
+
         offset = r.get("offset", 0)
-        all_data = sorted(filter(mongo_filter(cond), db.get_all()),
-                          key=sorter(sort_by, desc))
+
         return jsonify({
             "data": all_data[offset: offset + r.get("limit", 10)],
             "count": len(all_data)

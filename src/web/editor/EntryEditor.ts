@@ -1,14 +1,14 @@
 import { Vue, Component, Prop, Emit } from "vue-property-decorator";
 import h from "hyperscript";
-import { Columns, IColumn } from "../shared";
+import { Columns } from "../shared";
 import DatetimeNullable from "./DatetimeNullable";
-import { fetchJSON, normalizeArray, dotGetter, dotSetter, fixData, IKv } from "../util";
+import { fetchJSON, normalizeArray, dotGetter, dotSetter, fixData, IKv, deepMerge } from "../util";
 import TagEditor from "./TagEditor";
 import swal from "sweetalert";
-import SimpleMde from "./SimpleMde";
+import MarkdownEditor from "./MarkdownEditor";
 
 @Component({
-    components: {DatetimeNullable, TagEditor, SimpleMde},
+    components: {DatetimeNullable, TagEditor, MarkdownEditor},
     template: h("b-modal", {attrs: {
         ":id": "id",
         ":title": "title",
@@ -23,62 +23,162 @@ import SimpleMde from "./SimpleMde";
         h("form.col-12.needs-validation", {attrs: {
             "ref": "form"
         }}, [
-            h(".col-12.mb-3", {attrs: {
-                "v-for": "c in activeCols",
-                ":key": "c ? c.name : 'separator'"
-            }}, [
-                h(".row", {attrs: {
-                    "v-if": "c"
-                }}, [
-                    h("label.col-form-label.mb-1", {attrs: {
-                        ":class": "{'col-sm-2': c.type !== 'html'}"
-                    }}, "{{c.label}}"),
-                    h("simple-mde", {attrs: {
-                        "v-if": "c.type === 'html'",
-                        ":value": "update[c.name] || getParsedData(c.name) || ''",
-                        "v-on:input": "$set(update, c.name, $event)",
-                        ":required": "c.required",
-                        ":invalid-feedback": "c.label + 'is required.'",
-                        ":data": "data"
-                    }}),
-                    h("datetime-nullable.col-sm-10", {attrs: {
-                        "v-else-if": "c.type === 'datetime'",
-                        ":value": "update[c.name] || data[c.name]",
-                        "v-on:input": "$set(update, c.name, $event)",
-                        ":required": "c.required"
-                    }}),
-                    h("tag-editor.col-sm-10", {attrs: {
-                        "v-else-if": "c.type === 'tag'",
-                        ":value": "(update[c.name] || data[c.name]) ? (update[c.name] || data[c.name]).join(' ') : ''",
-                        "v-on:input": "$set(update, c.name, $event.split(' '))"
-                    }}),
-                    h("textarea.form-control.col-sm-10", {attrs: {
-                        "v-else-if": "c.type === 'multiline'",
-                        ":value": "dotGetter(update, c.name) || dotGetter(data, c.name)",
-                        "v-on:input": "dotSetter(update, c.name, $event.target.value)"
-                    }}),
+            h(".col-12.mb-3", [
+                h(".row", [
+                    h("label.col-form-label.col-sm-2", "Deck"),
                     h("input.form-control.col-sm-10", {attrs: {
-                        "v-else": "",
-                        ":value": "update[c.name] || data[c.name]",
-                        "v-on:input": "$set(update, c.name, $event.target.value)",
-                        ":required": "c.required"
+                        ":value": "update.deck || data.deck",
+                        "v-on:input": "$set(update, 'deck', $event.target.value)",
+                        "required": ""
                     }}),
-                    h(".invalid-feedback", "{{c.label}} is required.")
-                ]),
-                h("h4.mb-3", {attrs: {
-                    "v-else": ""
-                }}, "Template data")
+                    h(".invalid-feedback", "Deck is required.")
+                ])
+            ]),
+            h(".col-12.mb-3", [
+                h(".row", [
+                    h("label.col-form-label.mb-1", "Front"),
+                    h("markdown-editor", {attrs: {
+                        ":value": "update.front || getParsedData('front') || ''",
+                        "v-on:input": "$set(update, 'front', $event)",
+                        "required": "",
+                        "invalid-feedback": "Front is required.",
+                        ":data": "deepMerge(data, update)"
+                    }})
+                ])
+            ]),
+            h(".col-12.mb-3", [
+                h(".row", [
+                    h("label.col-form-label.mb-1", "Back"),
+                    h("markdown-editor", {attrs: {
+                        ":value": "update.back || getParsedData('back') || ''",
+                        "v-on:input": "$set(update, 'back', $event)",
+                        ":data": "deepMerge(data, update)"
+                    }})
+                ])
+            ]),
+            h(".col-12.mb-3", [
+                h(".row", [
+                    h("label.col-form-label.mb-1", "Mnemonic"),
+                    h("markdown-editor", {attrs: {
+                        ":value": "update.mnemonic || getParsedData('mnemonic') || ''",
+                        "v-on:input": "$set(update, 'mnemonic', $event)",
+                        ":data": "deepMerge(data, update)"
+                    }})
+                ])
+            ]),
+            h(".col-12.mb-3", [
+                h(".row", [
+                    h("label.col-form-label.col-sm-2", "Tags"),
+                    h("tag-editor.col-sm-10", {attrs: {
+                        ":value": "(update.tag || data.tag) ? (update.tag || data.tag).join(' ') : ''",
+                        "v-on:input": "$set(update, 'tag', $event.split(' '))"
+                    }})
+                ])
             ]),
             h(".col-12.mb-3", {attrs: {
-                "v-if": "activeCols.indexOf(null) !== -1"
+                "v-if": "entryId"
             }}, [
                 h(".row", [
-                    h("input.form-control.col-sm-4.no-border", {attrs: {
+                    h("label.col-form-label.col-sm-2", "SRS Level"),
+                    h("input.form-control.col-sm-10", {attrs: {
+                        ":value": "update.srsLevel || data.srsLevel",
+                        "v-on:input": "$set(update, 'srsLevel', $event.target.value)"
+                    }})
+                ])
+            ]),
+            h(".col-12.mb-3", {attrs: {
+                "v-if": "entryId"
+            }}, [
+                h(".row", [
+                    h("label.col-form-label.col-sm-2", "Next Review"),
+                    h("datetime-nullable.col-sm-10", {attrs: {
+                        ":value": "update.nextReview || data.nextReview",
+                        "v-on:input": "$set(update, 'nextReview', $event)"
+                    }})
+                ])
+            ]),
+            h(".col-12.mb-3", [
+                h("h4.mb-3", "Template data")
+            ]),
+            h(".col-12.mb-3", {attrs: {
+                "v-if": "entryId"
+            }}, [
+                h(".row", [
+                    h("label.col-form-label.col-sm-2", "Source"),
+                    h("input.form-control.col-sm-10", {attrs: {
+                        ":value": "update.source || data.source",
+                        "v-on:input": "$set(update, 'source', $event.target.value)"
+                    }})
+                ])
+            ]),
+            h(".col-12.mb-3", {attrs: {
+                "v-if": "entryId"
+            }}, [
+                h(".row", [
+                    h("label.col-form-label.col-sm-2", "Template"),
+                    h("input.form-control.col-sm-10", {attrs: {
+                        ":value": "update.template || data.template",
+                        "v-on:input": "$set(update, 'template', $event.target.value)"
+                    }})
+                ])
+            ]),
+            h(".col-12.mb-3", [
+                h(".row", [
+                    h(".col-6", [
+                        h("b-button.form-control", {attrs: {
+                            "variant": "success",
+                            "v-b-modal.css-editor": ""
+                        }}, "Edit CSS")
+                    ]),
+                    h(".col-6", [
+                        h("b-button.form-control", {attrs: {
+                            "variant": "warning",
+                            "v-b-modal.js-editor": ""
+                        }}, "Edit JavaScript")
+                    ])
+                ])
+            ]),
+            h(".col-12.mb-3", {attrs: {
+                "v-for": "c in dataCols"
+            }}, [
+                h(".row", [
+                    h("label.col-form-label.col-sm-2", "{{c.label}}"),
+                    h("textarea.form-control.col-sm-10", {attrs: {
+                        ":value": "dotGetter(update, c.name) || dotGetter(data, c.name)",
+                        "v-on:input": "dotSetter(update, c.name, $event.target.value)"
+                    }})
+                ])
+            ]),
+            h(".col-12.mb-3", [
+                h(".row", [
+                    h("input.form-control.col-sm-6.no-border", {attrs: {
                         "v-on:keypress": "onExtraRowInput",
-                        "placeholder": "Type here to add more keys."
+                        "placeholder": "Type here and press Enter to add more keys..."
                     }}),
                 ])
             ])
+        ]),
+        h("b-modal", {attrs: {
+            id: "css-editor",
+            title: "CSS Editor",
+            "v-on:ok": "$set(update, 'css', $refs.css.codemirror.getValue())"
+        }}, [
+            h("codemirror", {attrs: {
+                "ref": "css",
+                ":value": "update.css || data.css",
+                ":options": "{mode: 'text/css'}"
+            }}),
+        ]),
+        h("b-modal", {attrs: {
+            id: "js-editor",
+            title: "JavaScript Editor",
+            "v-on:ok": "$set(update, 'js', $refs.js.codemirror.getValue())"
+        }}, [
+            h("codemirror", {attrs: {
+                "ref": "js",
+                ":value": "update.js || data.js",
+                ":options": "{mode: 'text/javascript'}"
+            }}),
         ])
     ]).outerHTML
 })
@@ -93,37 +193,15 @@ export default class EntryEditor extends Vue {
 
     private dotGetter = dotGetter;
     private dotSetter = dotSetter;
+    private deepMerge = deepMerge;
 
-    get activeCols() {
-        const cols = Columns.filter((c) => !this.entryId ? c.newEntry !== false : true) as Array<IColumn | null>;
-
-        if (this.entryId) {
-            const extraCols: string[] = (this.data.data || []).map((d: IKv) => d.key);
-
-            if (extraCols.length > 0) {
-                cols.push(...[
-                    null,
-                    {
-                        name: "source",
-                        label: "Source"
-                    },
-                    {
-                        name: "template",
-                        label: "Template"
-                    }
-                ]);
+    get dataCols() {
+        return (this.data.data || []).map((d: IKv) => d.key).map((c: string) => {
+            return {
+                name: `@${c}`,
+                label: c
             }
-
-            extraCols.forEach((c) => {
-                cols.push({
-                    name: `@${c}`,
-                    label: c[0].toLocaleUpperCase() + c.substr(1),
-                    type: "multiline"
-                });
-            });
-        }
-
-        return cols;
+        });
     }
 
     private getParsedData(key: string) {
@@ -139,21 +217,29 @@ export default class EntryEditor extends Vue {
     private onExtraRowInput(evt: any) {
         const k = evt.target.value;
 
-        if (evt.key === "Enter" && k) {
-            let toAdd = true;
-            for (const it of this.data.data) {
-                if (it.key === k) {
-                    toAdd = false;
-                }
-            }
-            if (toAdd) {
-                this.data.data.push({
-                    key: k,
-                    value: ""
-                });
-            }
+        if (evt.key === "Enter") {
+            evt.preventDefault();
 
-            evt.target.value = "";
+            if (k) {
+                if (!this.data.data) {
+                    Vue.set(this.data, "data" , []);
+                }
+    
+                let toAdd = true;
+                for (const it of this.data.data) {
+                    if (it.key === k) {
+                        toAdd = false;
+                    }
+                }
+                if (toAdd) {
+                    this.data.data.push({
+                        key: k,
+                        value: ""
+                    });
+                }
+    
+                evt.target.value = "";
+            }
         }
     }
     
