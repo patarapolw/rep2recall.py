@@ -89,11 +89,11 @@ export function escapeRegExp(s: string) {
 }
 
 export function fixData(d: any): any {
-    if (["@md5\n", "@template\n", "@rendered\n"].some((c) => d.front.startsWith(c))) {
+    if (d.front && ["@md5\n", "@template\n", "@rendered\n"].some((c) => d.front.startsWith(c))) {
         d.front = "@rendered\n" + ankiMustache(d.tFront, d);
     }
 
-    if (["@md5\n", "@template\n", "@rendered\n"].some((c) => d.back.startsWith(c))) {
+    if (d.back && ["@md5\n", "@template\n", "@rendered\n"].some((c) => d.back.startsWith(c))) {
         d.back = "@rendered\n" + ankiMustache(d.tBack, d);
     }
 
@@ -245,4 +245,27 @@ export function dotSetter(d: any, key: string, v: any) {
     } else {
         Vue.set(d, key, v);
     }
+
+    console.log(d);
+}
+
+export function deepMerge(d: any, u: any) {
+    const output = JSON.parse(JSON.stringify(d));
+
+    const dData = d.data || [];
+    const uData = u.data || [];
+
+    for (const uDict of uData) {
+        for (const dDict of dData) {
+            if (dDict.key === uDict.key) {
+                output.data[dData.indexOf(dDict)].value = uDict.value;
+                break;
+            }
+        }
+    }
+
+    const uRemaining = JSON.parse(JSON.stringify(u));
+    delete uRemaining.data;
+
+    return Object.assign(output, uRemaining);
 }

@@ -1,9 +1,8 @@
 import sqlite3
-from typing import List, Iterable
+from typing import List, Iterable, Optional
 import json
 from datetime import datetime
 import hashlib
-
 from .util import anki_mustache
 
 
@@ -25,7 +24,7 @@ class Db:
         CREATE TABLE IF NOT EXISTS template (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             sourceId    INTEGER REFERENCES source(id),
-            name        VARCHAR NOT NULL,
+            name        VARCHAR,
             model       VARCHAR,
             front       VARCHAR NOT NULL,
             back        VARCHAR,
@@ -36,7 +35,7 @@ class Db:
         CREATE TABLE IF NOT EXISTS note (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             sourceId    INTEGER REFERENCES source(id),
-            key         VARCHAR NOT NULL,
+            key         VARCHAR,
             data        VARCHAR NOT NULL /* JSON */,
             UNIQUE (sourceId, key)
         );
@@ -52,7 +51,7 @@ class Db:
             deckId      INTEGER NOT NULL REFERENCES deck(id),
             templateId  INTEGER REFERENCES template(id),
             noteId      INTEGER REFERENCES note(id),
-            front       VARCHAR UNIQUE NOT NULL,
+            front       VARCHAR NOT NULL,
             back        VARCHAR,
             mnemonic    VARCHAR,
             srsLevel    INTEGER,
@@ -81,6 +80,8 @@ class Db:
             pass
 
     def insert_many(self, entries: List[dict]) -> List[int]:
+        entries = list(map(lambda u: self.transform_create_or_update(None, u), entries))
+
         decks = list(set(map(lambda x: x["deck"], entries)))
         deck_ids = list(map(self.get_or_create_deck, decks))
 
@@ -103,9 +104,9 @@ class Db:
                 source_set.add(source_h)
 
         templates = []
-        for t in filter(lambda x: x.get("model") and x.get("template"), entries):
+        for t in filter(lambda x: x.get("tFront"), entries):
             source_id = t.get("sourceId", source_id)
-            templates.append(f"{t['template']}\x1f{t['model']}")
+            templates.append(f"{t.get('template', 'template')}\x1f{t.get('model', 'model')}")
 
             if t.get("tFront"):
                 self.conn.execute("""
@@ -113,8 +114,8 @@ class Db:
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT DO NOTHING
                 """, (
-                    t["template"],
-                    t["model"],
+                    t.get("template"),
+                    t.get("model"),
                     t["tFront"],
                     t.get("tBack"),
                     t.get("css"),
@@ -136,22 +137,23 @@ class Db:
 
         note_ids = []
         for e in entries:
-            if e.get("entry"):
-                self.conn.execute("""
-                INSERT INTO note (sourceId, key, data)
-                VALUES (?, ?, ?)
-                ON CONFLICT DO NOTHING
-                """, (
-                    source_id,
-                    e["entry"],
-                    json.dumps(e["data"], ensure_ascii=False)
-                ))
-                note_id = self.conn.execute("""
-                SELECT id FROM note
-                WHERE
-                    sourceId = ? AND
-                    key = ?
-                """, (source_id, e["entry"])).fetchone()[0]
+            if e.get("data"):
+                try:
+                    note_id = self.conn.execute("""
+                    INSERT INTO note (sourceId, key, data)
+                    VALUES (?, ?, ?)
+                    """, (
+                        source_id,
+                        e.get("entry"),
+                        json.dumps(e["data"], ensure_ascii=False)
+                    )).lastrowid
+                except sqlite3.Error:
+                    note_id = self.conn.execute("""
+                    SELECT id FROM note
+                    WHERE
+                        sourceId = ? AND
+                        key = ?
+                    """, (source_id, e.get("entry"))).fetchone()[0]
                 note_ids.append(note_id)
             else:
                 note_ids.append(None)
@@ -161,8 +163,8 @@ class Db:
         for i, e in enumerate(entries):
             card_id = int(self.conn.execute("""
             INSERT INTO card
-            (front, back, mnemonic, nextReview, deckId, noteId, templateId, created)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (front, back, mnemonic, nextReview, deckId, noteId, templateId, created, srsLevel)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 e["front"],
                 e.get("back"),
@@ -172,7 +174,8 @@ class Db:
                 note_ids[i],
                 template_ids[templates.index(f"{e['template']}\x1f{e['model']}")]
                 if e.get("model") and e.get("template") else None,
-                now
+                now,
+                e.get("srsLevel")
             )).lastrowid)
 
             if e.get("tag"):
@@ -257,17 +260,19 @@ class Db:
         WHERE name = ?
         """, (name,)).fetchone()[0]
 
-    def update(self, c_id: int, u: dict = None, commit: bool = True):
+    def transform_create_or_update(self, c_id: Optional[int] = None, u: dict = None) -> dict:
         if u is None:
             u = dict()
 
-        u["modified"] = str(datetime.now())
         data = None
         front = None
 
         if u.get("front", "").startswith("@template\n"):
             if data is None:
-                data = self.get_data(c_id)
+                if c_id is not None:
+                    data = self.get_data(c_id)
+                else:
+                    data = u.get("data", dict())
             u["tFront"] = u.pop("front")[len("@template\n"):]
 
         if u.get("tFront"):
@@ -277,11 +282,23 @@ class Db:
         if u.get("back", "").startswith("@template\n"):
             u["tBack"] = u.pop("back")[len("@template\n"):]
             if front is None:
-                front = self.get_front(c_id)
+                if c_id is not None:
+                    front = self.get_front(c_id)
+                else:
+                    front = ""
 
         if u.get("tBack"):
             back = anki_mustache(u["tBack"], data, front)
             u["back"] = "@md5\n" + hashlib.md5(back.encode()).hexdigest()
+
+        return u
+
+    def update(self, c_id: int, u: dict = None, commit: bool = True):
+        if u is None:
+            u = dict()
+
+        u = self.transform_create_or_update(c_id, u)
+        u["modified"] = str(datetime.now())
 
         for k, v in u.items():
             if k == "deck":
@@ -317,6 +334,8 @@ class Db:
                     data = self.get_data(c_id)
 
                 for vn in v:
+                    assert isinstance(vn, dict)
+
                     is_new = True
                     for i, d in enumerate(data):
                         if d["key"] == vn["key"]:
@@ -327,13 +346,28 @@ class Db:
                     if is_new:
                         data.append(vn)
 
-                self.conn.execute("""
-                UPDATE note
-                SET data = ?
-                WHERE note.id = (
-                    SELECT noteId FROM card WHERE card.id = ?
-                )
-                """, (json.dumps(data, ensure_ascii=False), c_id))
+                if self.conn.execute("""
+                SELECT noteId FROM card WHERE card.id = ?
+                """, (c_id,)).fetchone() is None:
+
+                    note_id = self.conn.execute("""
+                    INSERT INTO note (data)
+                    VALUES (?)
+                    """, (json.dumps(data, ensure_ascii=False)))
+
+                    self.conn.execute("""
+                    UPDATE card
+                    SET noteId = ?
+                    WHERE id = ?
+                    """, (note_id, c_id))
+                else:
+                    self.conn.execute("""
+                    UPDATE note
+                    SET data = ?
+                    WHERE note.id = (
+                        SELECT noteId FROM card WHERE card.id = ?
+                    )
+                    """, (json.dumps(data, ensure_ascii=False), c_id))
 
         if commit:
             self.conn.commit()
