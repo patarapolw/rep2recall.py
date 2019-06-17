@@ -4,7 +4,7 @@ Rep2Recall with SQLite, powered by Python Flask server
 
 Download: <https://github.com/patarapolw/rep2recall-py/releases>
 
-[![](/screenshots/0.png)](https://youtu.be/LlFLVNLxqcQ)
+[![](/screenshots/0.png)](https://youtu.be/VDRyn7FUy8k)
 
 ## Features
 
