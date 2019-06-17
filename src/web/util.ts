@@ -191,6 +191,7 @@ export function quizDataToContent(
 
 export function slowClick($selector: JQuery) {
     const duration = 200;
+    $selector.prop("disabled", true);
 
     $selector.addClass("animated");
     $selector.css({

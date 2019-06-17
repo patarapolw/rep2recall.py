@@ -107,7 +107,8 @@ import MarkdownEditor from "./MarkdownEditor";
                     h("label.col-form-label.col-sm-2", "Source"),
                     h("input.form-control.col-sm-10", {attrs: {
                         ":value": "update.source || data.source",
-                        "v-on:input": "$set(update, 'source', $event.target.value)"
+                        "v-on:input": "$set(update, 'source', $event.target.value)",
+                        "readonly": ""
                     }})
                 ])
             ]),
@@ -118,7 +119,8 @@ import MarkdownEditor from "./MarkdownEditor";
                     h("label.col-form-label.col-sm-2", "Template"),
                     h("input.form-control.col-sm-10", {attrs: {
                         ":value": "update.template || data.template",
-                        "v-on:input": "$set(update, 'template', $event.target.value)"
+                        "v-on:input": "$set(update, 'template', $event.target.value)",
+                        "readonly": ""
                     }})
                 ])
             ]),

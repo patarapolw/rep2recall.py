@@ -8,6 +8,7 @@ $fa-font-path: "~@fortawesome/fontawesome-free/webfonts";
 @import "~@fortawesome/fontawesome-free/scss/brands.scss";
 @import "~toastr/toastr.scss";
 @import "~codemirror/lib/codemirror";
+@import "~codemirror/theme/base16-light";
 
 @import "css/editor.scss";
 @import "css/quiz.scss";

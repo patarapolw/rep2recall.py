@@ -317,6 +317,14 @@ class Db:
                 SET {k} = ?
                 WHERE id = ?
                 """, (v, c_id))
+            elif k in {"css", "js"}:
+                self.conn.execute(f"""
+                UPDATE template
+                SET {k} = ?
+                WHERE template.id = (
+                    SELECT templateId FROM card WHERE card.id = ?
+                )
+                """, (v, c_id))
             elif k in {"tFront", "tBack"}:
                 self.conn.execute(f"""
                 UPDATE template
@@ -330,8 +338,7 @@ class Db:
                 self.edit_tags([c_id], set(v) - prev_tags, True, False)
                 self.edit_tags([c_id], prev_tags - set(v), False, False)
             elif k == "data":
-                if data is None:
-                    data = self.get_data(c_id)
+                data = self.get_data(c_id)
 
                 for vn in v:
                     assert isinstance(vn, dict)

@@ -40,7 +40,7 @@ import $ from "jquery";
                 }})
             ])
         ]),
-        h("b-modal.quiz-modal", {attrs: {
+        h("b-modal", {attrs: {
             "id": "quiz-modal",
             "scrollable": "",
             "hide-header": "",
@@ -48,14 +48,14 @@ import $ from "jquery";
             "v-on:hide": "getTreeViewData"
         }}, [
             h("iframe", {attrs: {
-                ":srcdoc": "quizContent",
+                ":srcdoc": "quizContentPrefix + quizContent",
                 "frameBorder": "0"
             }}),
             h(".counter", [
                 h("small", "{{currentQuizIndex >= 0 ? ((currentQuizIndex + 1).toLocaleString() + ' of ' + quizIds.length.toLocaleString()) : ''}}")
             ]),
             h(".w-100.d-flex.justify-content-between", {attrs: {
-                "slot": "modal-footer",
+                "slot": "modal-footer"
             }}, [
                 h("div", {style: {width: "50px"}}, [
                     h("button.btn.btn-secondary.quiz-previous", {attrs: {
@@ -110,46 +110,59 @@ export default class QuizUi extends Vue {
 
     private quizIds: number[] = [];
     private currentQuizIndex: number = -1;
+    private quizContentPrefix = `
+    <script>
+    window.addEventListener("keydown", (evt) => {
+        const {type, key} = evt;
+        parent.$("#quiz-modal").trigger(parent.$.Event(type, {key}));
+    });
+    </script>`;
     private quizContent = "";
     private quizShownAnswer = false;
     private quizData: any = {};
-
     private selectedDeck = "";
 
-    constructor(props: any) {
-        super(props);
-        $(document.body).on("keydown", "#quiz-modal", (e) => {
-            if (e.key === "Enter" || e.key === " ") {
+    public mounted() {
+        this.getTreeViewData();
+        $(document.body).on("keydown", "#quiz-modal", this.keyboardHandler);
+    }
+
+    public update() {
+        this.getTreeViewData();
+    }
+
+    public destroyed() {
+        $(document.body).off("keydown", "#quiz-modal", this.keyboardHandler);
+    }
+
+    private keyboardHandler(evt: JQuery.KeyDownEvent) {
+        const keyControl = {
+            toggle() {
                 const $toggle = $(".quiz-toggle");
                 if ($toggle.length > 0) {
                     slowClick($toggle);
                 } else {
                     slowClick($(".quiz-next"));
                 }
-            } else if (e.key === "Backspace" || e.key === "ArrowLeft") {
+            },
+            previous() {
                 slowClick($(".quiz-previous"));
-            } else if (e.key === "1") {
-                slowClick($(".quiz-right"));
-            } else if (e.key === "2") {
-                slowClick($(".quiz-wrong"));
-            } else if (e.key === "3") {
-                slowClick($(".quiz-edit"));
-            } else if (e.key === "ArrowUp") {
-                slowClick($(".quiz-hide"));
-            } else if (e.key === "ArrowDown") {
-                slowClick($(".quiz-show"));
-            } else if (e.key === "ArrowRight") {
-                slowClick($(".quiz-next"));
             }
-        });
-    }
+        }
 
-    public mounted() {
-        this.getTreeViewData();
-    }
-
-    public update() {
-        this.getTreeViewData();
+        switch(evt.key) {
+            case "Enter":
+            case " ": keyControl.toggle(); break;
+            case "Backspace": 
+            case "ArrowLeft":keyControl.previous(); break;
+            case "ArrowRight": slowClick($(".quiz-next")); break;
+            case "ArrowUp": slowClick($(".quiz-hide")); break;
+            case "ArrowDown": slowClick($(".quiz-show")); break;
+            case "1": slowClick($(".quiz-right")); break;
+            case "2": slowClick($(".quiz-wrong")); break;
+            case "3": slowClick($(".quiz-edit")); break;
+            default: console.log(evt.key);
+        }
     }
 
     private onInputKeypress(evt: any) {
