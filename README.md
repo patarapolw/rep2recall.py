@@ -1,4 +1,4 @@
-# Rep2Recall Python version
+# Rep2Recall
 
 Rep2Recall with SQLite, powered by Python Flask server
 
@@ -8,7 +8,7 @@ Download: <https://github.com/patarapolw/rep2recall-py/releases>
 
 ## Features
 
-- Intuitive "Repeat to Recall" [spaced repetition memorization](https://en.wikipedia.org/wiki/Spaced_repetition).
+- Intuitive "Repeat to Recall" [spaced repetition memorization](https://en.wikipedia.org/wiki/Spaced_repetition) inspired by <https://www.wanikani.com/>
 - Uses SQLite all the way, so editable via programming. (SQLite path can be viewed at Settings.)
 - Full range of CSS and JavaScript enabled, as defined by latest web browser. ([Chromium](https://www.chromium.org/Home) for [Electron](https://electronjs.org/docs/tutorial/about).) It is possible without clashing without the UI due to `<iframe srcdoc="html">`
 - Intuitive and powerful [search engine](/docs/search.md)
