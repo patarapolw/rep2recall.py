@@ -3,7 +3,7 @@
 - `OR`, ` ` (and), `()` (brackets), and `"` (quotation mark) are supported
 - Various `is:` shorthands
 - `=`, `~` (regular expression), `>`, `>=`, `<`, `<=`
-- `NULL` (does not exist or empty string), `NOW`, `(+/-)(number)(unit)`, e.g. `+1h`
+- `NULL` (does not exist or empty string), `NOW`, `(+/-)(number)(unit)` for time-related fields, e.g. `+1h`
 
 ## Supported shorthands (`is:`)
 
