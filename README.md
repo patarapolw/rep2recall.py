@@ -10,7 +10,7 @@ Download: <https://github.com/patarapolw/rep2recall-py/releases>
 
 - Intuitive "Repeat to Recall" [spaced repetition memorization](https://en.wikipedia.org/wiki/Spaced_repetition) inspired by <https://www.wanikani.com/>
 - Uses SQLite all the way, so editable via programming. (SQLite path can be viewed at Settings.)
-- Full range of CSS and JavaScript enabled, as defined by latest web browser. ([Chromium](https://www.chromium.org/Home) for [Electron](https://electronjs.org/docs/tutorial/about).) It is possible without clashing without the UI due to `<iframe srcdoc="html">`
+- Full range of CSS and JavaScript enabled, as defined by latest web browser. ([Chromium](https://www.chromium.org/Home) for [Electron](https://electronjs.org/docs/tutorial/about).) It is possible without clashing with the UI due to `<iframe srcdoc="html">`
 - Intuitive and powerful [search engine](/docs/search.md)
 - Exposes CORS-enabled web API.
 - Easy to add media files, by copying to `media/` folder. It will be available as `/media/file.ext`
