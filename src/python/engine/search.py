@@ -61,9 +61,12 @@ def parse_query(s: str) -> Tuple[dict, Any, Any]:
                     k = "tag"
                     o = "="
                     v = "marked"
-            elif k == "due":
+
+            if k in {"due", "nextReview"} and o == ":":
                 k = "nextReview"
                 o = "<="
+            elif k in {"created", "modified"} and o == ":":
+                o = ">="
 
             if v == "NULL":
                 pre_result = {"$or": [

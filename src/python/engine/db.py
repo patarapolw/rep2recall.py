@@ -144,7 +144,7 @@ class Db:
                     VALUES (?, ?, ?)
                     """, (
                         source_id,
-                        e.get("entry"),
+                        e.get("key"),
                         json.dumps(e["data"], ensure_ascii=False)
                     )).lastrowid
                 except sqlite3.Error:
@@ -153,7 +153,7 @@ class Db:
                     WHERE
                         sourceId = ? AND
                         key = ?
-                    """, (source_id, e.get("entry"))).fetchone()[0]
+                    """, (source_id, e.get("key"))).fetchone()[0]
                 note_ids.append(note_id)
             else:
                 note_ids.append(None)
@@ -220,7 +220,7 @@ class Db:
             t.back AS tBack,
             css,
             js,
-            n.key AS entry,
+            n.key AS "key",
             n.data AS data,
             s.name AS source,
             s.h AS sourceH,

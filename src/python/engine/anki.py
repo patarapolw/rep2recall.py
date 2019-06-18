@@ -224,7 +224,7 @@ class Anki:
                 "deck": n["deck"].replace("::", "/"),
                 "model": n["mname"],
                 "template": n["tname"],
-                "entry": f"{self.filename}/{n['mname']}/{vs[0]}",
+                "key": f"{self.filename}/{n['mname']}/{vs[0]}",
                 "data": data,
                 "front": front,
                 "back": back,
