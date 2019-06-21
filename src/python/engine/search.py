@@ -102,9 +102,9 @@ def parse_query(s: str) -> Tuple[dict, Any, Any]:
                 pre_result = {k: v}
 
         if pre_result is None:
-            raise ValueError("Invalid query string")
+            pre_result = dict()
 
-        if tuple(pre_result.keys())[0] == "sortBy":
+        if pre_result and tuple(pre_result.keys())[0] == "sortBy":
             sort_by = tuple(pre_result.values())[0]
             desc = (t[0] == "-")
         else:
@@ -161,7 +161,7 @@ def parse_timedelta(s: str) -> timedelta:
         elif m[2] in {"y", "yr"}:
             return timedelta(days=365 * int(m[1]))
 
-    raise ValueError("Invalid timedelta value")
+    return timedelta()
 
 
 def sorter(sort_by: str, desc: bool) -> Callable[[Any], bool]:
