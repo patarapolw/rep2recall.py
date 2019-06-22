@@ -13,6 +13,7 @@
 - `is:leech` -- filters `srsLevel:0`
 - `is:new` -- filters `nextReview:NULL`
 - `is:marked` -- filters `tag=marked`
+- `is:random` -- equivalent to `sortBy:random`
 
 ## Searching syntax
 
@@ -31,3 +32,4 @@
 - Sorting operators
     - `sortBy:` for ascending sorting
     - `-sortBy:` for decending sorting
+    - `sortBy:random` for random shuffle

@@ -1,5 +1,6 @@
 from flask import Blueprint, request, Response, jsonify
 import re
+from random import shuffle
 
 from ..shared import Config
 from ..engine.search import mongo_filter, sorter, parse_query
@@ -17,7 +18,7 @@ def r_editor():
         if r.get("cond"):
             cond, sort_by, desc = r["cond"], None, None
         else:
-            cond, sort_by, desc = parse_query(re.sub(r"(is:duplicate|is:distinct)", "", r["q"]))
+            cond, sort_by, desc = parse_query(re.sub(r"(is:duplicate|is:distinct|is:random)", "", r["q"]))
 
         if sort_by is None:
             sort_by = r.get("sortBy", "deck")
@@ -48,8 +49,15 @@ def r_editor():
         else:
             all_data = db.get_all()
 
-        all_data = sorted(filter(mongo_filter(cond), all_data),
-               key=sorter(sort_by, desc))
+        if "is:distinct" in r.get("q", ""):
+            sort_by = "random"
+
+        if sort_by == "random":
+            all_data = list(filter(mongo_filter(cond), all_data))
+            shuffle(all_data)
+        else:
+            all_data = sorted(filter(mongo_filter(cond), all_data),
+                   key=sorter(sort_by, desc))
 
         offset = r.get("offset", 0)
 
