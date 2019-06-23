@@ -3,7 +3,7 @@ import re
 from random import shuffle
 
 from ..shared import Config
-from ..engine.search import mongo_filter, sorter, parse_query
+from ..engine.search import mongo_filter, sorter, SearchParser
 from ..engine.util import anki_mustache
 
 api_editor = Blueprint("editor", __name__, url_prefix="/api/editor")
@@ -15,10 +15,12 @@ def r_editor():
     db = Config.DB
 
     if request.method == "POST":
-        if r.get("cond"):
-            cond, sort_by, desc = r["cond"], None, None
-        else:
-            cond, sort_by, desc = parse_query(re.sub(r"(is:duplicate|is:distinct|is:random)", "", r["q"]))
+        parser = SearchParser()
+
+        cond = r.get("cond", parser.parse(r["q"]))
+        sort_by = parser.sort_by
+        desc = parser.desc
+        is_ = parser.is_
 
         if sort_by is None:
             sort_by = r.get("sortBy", "deck")
@@ -26,7 +28,7 @@ def r_editor():
         if desc is None:
             desc = r.get("desc", False)
 
-        if "is:duplicate" in r.get("q", ""):
+        if is_ == "duplicate":
             counter = dict()
             for data in db.get_all():
                 if data.get("tFront"):
@@ -38,7 +40,7 @@ def r_editor():
             for k, v in counter.items():
                 if len(v) > 1:
                     all_data.extend(v)
-        elif "is:distinct" in r.get("q", ""):
+        elif is_ == "distinct":
             distinct_set = set()
             all_data = []
             for data in db.get_all():
@@ -49,7 +51,7 @@ def r_editor():
         else:
             all_data = db.get_all()
 
-        if "is:distinct" in r.get("q", ""):
+        if is_ == "distinct":
             sort_by = "random"
 
         if sort_by == "random":
@@ -57,7 +59,7 @@ def r_editor():
             shuffle(all_data)
         else:
             all_data = sorted(filter(mongo_filter(cond), all_data),
-                   key=sorter(sort_by, desc))
+                              key=sorter(sort_by, desc))
 
         offset = r.get("offset", 0)
 

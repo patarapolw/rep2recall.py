@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "rep2recall-py"
-version = "0.3.0"
-description = ""
+name = "rep2recall-sqlite"
+version = "0.4.0"
+description = "Rep2Recall with Python SQLite"
 authors = ["Pacharapol Withayasakpunt"]
 license = "MIT"
 

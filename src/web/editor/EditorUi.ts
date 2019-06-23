@@ -1,12 +1,13 @@
 import { Vue, Component, Watch } from "vue-property-decorator";
 import h from "hyperscript";
-import { Columns, DateFormat } from "./shared";
-import { fetchJSON, quizDataToContent, dotGetter, fixData } from "./util";
-import DatetimeNullable from "./editor/DatetimeNullable";
-import EntryEditor from "./editor/EntryEditor";
 import swal from "sweetalert";
 import toastr from "toastr";
 import flatpickr from "flatpickr";
+import "./editor.scss";
+import DatetimeNullable from "./DatetimeNullable";
+import EntryEditor from "./EntryEditor";
+import { Columns, DateFormat } from "../shared";
+import { dotGetter, fetchJSON, quizDataToContent, fixData } from "../util/util";
 
 @Component({
     components: {DatetimeNullable, EntryEditor},

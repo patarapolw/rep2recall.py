@@ -5,12 +5,12 @@ import VueRouter from "vue-router";
 import BootstrapVue from "bootstrap-vue";
 import "bootstrap";
 import $ from "jquery";
-import QuizUi from "./QuizUi";
-import EditorUi from "./EditorUi";
-import ImportUi from "./ImportUi";
+import QuizUi from "./quiz/QuizUi";
+import EditorUi from "./editor/EditorUi";
+import ImportUi from "./import/ImportUi";
 import "./contextmenu";
-import SettingsUi from "./SettingsUi";
-import { slowClick } from "./util";
+import SettingsUi from "./settings/SettingsUi";
+import { slowClick } from "./util/util";
 
 // @ts-ignore
 import VueCodemirror from "vue-codemirror";

@@ -1,6 +1,6 @@
 import { Vue, Component } from "vue-property-decorator";
 import h from "hyperscript";
-import { fetchJSON } from "./util";
+import { fetchJSON } from "../util/util";
 import swal from "sweetalert";
 
 @Component({

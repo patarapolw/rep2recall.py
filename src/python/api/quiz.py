@@ -4,7 +4,7 @@ from typing import List
 import json
 
 from ..shared import Config
-from ..engine.search import mongo_filter, parse_query, parse_timedelta
+from ..engine.search import mongo_filter, SearchParser, parse_timedelta
 from ..engine.quiz import get_next_review, srs_map, repeat_review
 
 api_quiz = Blueprint("quiz", __name__, url_prefix="/api/quiz")
@@ -69,7 +69,7 @@ def r_quiz_treeview():
 @api_quiz.route("/", methods=["POST"])
 def r_quiz_build():
     r = request.json
-    and_cond = [parse_query(r["q"])[0]]
+    and_cond = [SearchParser().parse(r["q"])]
 
     if r.get("deck"):
         and_cond.append({"$or": [

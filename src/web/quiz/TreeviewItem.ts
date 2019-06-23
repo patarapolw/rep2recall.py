@@ -1,7 +1,7 @@
 import { Vue, Component, Prop, Watch } from "vue-property-decorator";
 import h from "hyperscript";
 import quizState from "./shared";
-import { normalizeArray } from "../util";
+import { normalizeArray } from "../util/util";
 
 interface ITreeViewStat {
     new: number;
