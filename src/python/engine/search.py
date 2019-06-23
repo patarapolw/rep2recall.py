@@ -1,4 +1,3 @@
-from typing import Set, List, Tuple
 from datetime import datetime, timedelta
 import re
 from typing import Union, Callable, Any
@@ -10,112 +9,160 @@ IS_DATE = {"created", "modified", "nextReview"}
 IS_STRING = {"template", "front", "back", "mnemonic", "deck", "tag", "entry"}
 
 
-def parse_query(s: str) -> Tuple[dict, Any, Any]:
-    sort_by = None
-    desc = None
+class SearchParser:
+    def __init__(self):
+        self.error = None
+        self.is_ = set()
+        self.sort_by = None
+        self.desc = False
 
-    s = remove_brackets(s)
-    if " OR " in s:
-        return {"$or": [parse_query(t)[0] for t in shlex_split(s, {" OR "})]}, None, None
+    def parse(self, q: str):
+        try:
+            return self._parse(q)
+        except ValueError:
+            return dict()
 
-    tokens = shlex_split(s, {" "})
-    token_result = []
+    def _parse(self, q: str):
+        for method in [
+            self._remove_brackets,
+            self._parse_sep(" OR "),
+            self._parse_sep(" "),
+            self._parse_neg,
+            self._parse_full_expr,
+            self._parse_partial_expr
+        ]:
+            try:
+                return method(q.strip())
+            except ValueError as e:
+                self.error = e
 
-    for t in tokens:
-        expr_str = t[1:] if t[0] == "-" else t
-        expr = shlex_split(expr_str, {':', '>', '>=', '<', '<=', '=', '~'}, True)
+        raise self.error
 
-        pre_result = None
+    def _remove_brackets(self, q: str):
+        if len(q) > 2 and q[0] == "(" and q[-1] == ")":
+            return self._parse(q[1:-1])
 
-        if len(expr) == 1:
-            or_cond = []
-            for a in ANY_OF:
-                if a in IS_STRING:
-                    or_cond.append({a: {"$regex": re.escape(expr[0])}})
-                else:
-                    or_cond.append({a: expr[0]})
+        raise ValueError("Not bracketed")
 
-            or_cond.append({"@*": {"$regex": re.escape(expr[0])}})
+    def _parse_sep(self, sep: str):
+        def _parse_sep_inner(q: str):
+            tokens = q.split(sep)
+            if len(tokens) >= 2:
+                k = "$or" if sep == " OR " else "$and"
+                return {k: list(filter(lambda x: x, (self._parse(t) for t in tokens)))}
 
-            pre_result = {"$or": or_cond}
+            raise ValueError(f"Not separated by '{sep}'")
 
-        elif len(expr) == 3:
-            k, o, v = expr
+        return _parse_sep_inner
 
-            if k == "sortBy":
-                o = "="
+    def _parse_neg(self, q: str):
+        if q and q[0] == "-":
+            kw = "-sortBy:"
+
+            if q.startswith(kw) and q != kw:
+                self.sort_by = q[len(kw):]
+                return None
+
+            return {"$not": self._parse(q)}
+
+        raise ValueError("Not negative")
+
+    def _parse_full_expr(self, q: str):
+        m = re.fullmatch(r'([\w-]+)(:|~|[><]=?|=)([\w-]+|"[^"]+")', q)
+        if m:
+            k, op, v = m.groups()
+
+            if len(v) > 2 and v[0] == '"' and v[-1] == '"':
+                v = v[1:-1]
+            else:
+                m1 = re.fullmatch(r"\d+(?:\.\d+)?", v)
+                if m1:
+                    v = float(v)
 
             if k == "is":
                 if v == "due":
                     k = "nextReview"
-                    o = "<="
+                    op = "<="
                     v = str(datetime.now())
                 elif v == "leech":
                     k = "srsLevel"
-                    o = "="
+                    op = "="
                     v = 0
                 elif v == "new":
                     k = "nextReview"
                     v = "NULL"
                 elif v == "marked":
                     k = "tag"
-                    o = "="
+                    op = "="
                     v = "marked"
+                else:
+                    self.is_ = v
+                    return None
 
-            if k in {"due", "nextReview"} and o == ":":
+            if k in {"due", "nextReview"} and op == ":":
                 k = "nextReview"
-                o = "<="
-            elif k in {"created", "modified"} and o == ":":
-                o = ">="
+                op = "<="
+            elif k in {"created", "modified"} and op == ":":
+                op = ">="
+            elif k == "sortBy":
+                self.sort_by = v
+                return None
 
             if v == "NULL":
-                pre_result = {"$or": [
+                return {"$or": [
                     {k: ""},
                     {k: {"$exists": False}}
                 ]}
-            else:
-                if k in IS_DATE:
-                    try:
-                        v = str(datetime.now() + parse_timedelta(v))
-                        if o == ":":
-                            if k == "nextReview":
-                                o = "<="
-                            else:
-                                o = ">="
-                    except ValueError:
-                        pass
 
-                if o == ":":
-                    if isinstance(v, str) or k in IS_STRING:
-                        v = {"$regex": re.escape(str(v))}
-                elif o == "~":
-                    v = {"$regex": str(v)}
-                elif o == ">=":
-                    v = {"$gte": v}
-                elif o == ">":
-                    v = {"$gt": v}
-                elif o == "<=":
-                    v = {"$lte": v}
-                elif o == "<":
-                    v = {"$lt": v}
+            if k in IS_DATE:
+                try:
+                    v = str(datetime.now() + parse_timedelta(v))
+                    if op == ":":
+                        if k == "nextReview":
+                            op = "<="
+                        else:
+                            op = ">="
+                except ValueError:
+                    pass
 
-                pre_result = {k: v}
+            if op == ":":
+                if isinstance(v, str) or k in IS_STRING:
+                    v = {"$regex": re.escape(str(v))}
+            elif op == "~":
+                v = {"$regex": str(v)}
+            elif op == ">=":
+                v = {"$gte": v}
+            elif op == ">":
+                v = {"$gt": v}
+            elif op == "<=":
+                v = {"$lte": v}
+            elif op == "<":
+                v = {"$lt": v}
 
-        if pre_result is None:
-            pre_result = dict()
+            return {k: v}
 
-        if pre_result and tuple(pre_result.keys())[0] == "sortBy":
-            sort_by = tuple(pre_result.values())[0]
-            desc = (t[0] == "-")
-        else:
-            token_result.append({"$not": pre_result} if t[0] == "-" else pre_result)
+        raise ValueError("Not full expression")
 
-    return {"$and": token_result}, sort_by, desc
+    @staticmethod
+    def _parse_partial_expr(q: str):
+        if q and ":" not in q:
+            or_cond = []
+            for a in ANY_OF:
+                if a in IS_STRING:
+                    or_cond.append({a: {"$regex": re.escape(q)}})
+                else:
+                    or_cond.append({a: q})
+
+            or_cond.append({"@*": {"$regex": re.escape(q)}})
+
+            return {"$or": or_cond}
+
+        raise ValueError("Not partial expression")
 
 
 def mongo_filter(cond: Union[str, dict]) -> Callable[[dict], bool]:
     if isinstance(cond, str):
-        return mongo_filter(parse_query(cond)[0])
+        return mongo_filter(SearchParser().parse(cond))
 
     def inner_filter(item: dict) -> bool:
         for k, v in cond.items():
@@ -161,7 +208,7 @@ def parse_timedelta(s: str) -> timedelta:
         elif m[2] in {"y", "yr"}:
             return timedelta(days=365 * int(m[1]))
 
-    return timedelta()
+    raise ValueError("Invalid timedelta")
 
 
 def sorter(sort_by: str, desc: bool) -> Callable[[Any], bool]:
@@ -245,62 +292,6 @@ def data_getter(d: dict, k: str) -> Union[str, None]:
         pass
 
     return None
-
-
-def shlex_split(s: str, split_token: Set[str], keep_splitter: bool = False) -> List[str]:
-    s = remove_brackets(s)
-
-    tokens = []
-
-    new_token = ""
-    in_quote = False
-    in_bracket = False
-    to_skip = 0
-
-    for i, c in enumerate(s):
-        if c == '"' and (i == 0 or (i > 0 and s[i - 1] != "\\")):
-            in_quote = not in_quote
-            to_skip += 1
-
-        elif not in_bracket and c == "(" and (i == 0 or (i > 0 and s[i - 1] != "\\")):
-            in_bracket = True
-            to_skip += 1
-
-        if not in_quote and not in_bracket:
-            for t in split_token:
-                if s[i: i + len(t)] == t and (i == 0 or (i > 0 and s[i - 1] != "\\")):
-                    if new_token:
-                        tokens.append(new_token)
-                        new_token = ""
-
-                    if keep_splitter:
-                        tokens.append(t)
-
-                    to_skip = len(t)
-                    break
-
-        else:
-            if in_bracket and c == ")" and (i == 0 or (i > 0 and s[i - 1] != "\\")):
-                in_bracket = False
-                to_skip += 1
-
-        if to_skip > 0:
-            to_skip -= 1
-            continue
-
-        new_token += c
-
-    if new_token:
-        tokens.append(new_token)
-
-    return tokens
-
-
-def remove_brackets(s: str) -> str:
-    if len(s) >=2 and s[0] == "(" and s[-1] == ")":
-        return s[1:-1]
-
-    return s
 
 
 def _mongo_compare(v, v_obj: dict) -> bool:

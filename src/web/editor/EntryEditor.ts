@@ -2,7 +2,7 @@ import { Vue, Component, Prop, Emit } from "vue-property-decorator";
 import h from "hyperscript";
 import { Columns } from "../shared";
 import DatetimeNullable from "./DatetimeNullable";
-import { fetchJSON, normalizeArray, dotGetter, dotSetter, fixData, IKv, deepMerge } from "../util";
+import { fetchJSON, normalizeArray, dotGetter, dotSetter, fixData, IKv, deepMerge } from "../util/util";
 import TagEditor from "./TagEditor";
 import swal from "sweetalert";
 import MarkdownEditor from "./MarkdownEditor";

@@ -1,9 +1,11 @@
-from ..python.engine.search import mongo_filter, shlex_split
+from ..python.engine.search import SearchParser
 
 
-def test_mongo_filter():
-    print(list(filter(mongo_filter({"tag": {"$startswith": "h"}}), [{"tag": ["hanzi"], "extra": "x"}, {"tag": "sth"}])))
+def test_search_empty():
+    print(SearchParser().parse(""))
 
 
-def test_shlex_split():
-    print(shlex_split("a>=b", {">="}, True))
+def test_search1():
+    print(SearchParser().parse("is:leech OR is:due"))
+    print(SearchParser().parse("is:leech is:due"))
+    print(SearchParser().parse("is:leech OR (is:due is:random)"))
