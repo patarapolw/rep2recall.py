@@ -3,6 +3,7 @@ import re
 from typing import Union, Callable, Any
 import math
 import functools
+from uuid import uuid4
 
 ANY_OF = {"template", "front", "mnemonic", "entry", "deck", "tag"}
 IS_DATE = {"created", "modified", "nextReview"}
@@ -19,7 +20,7 @@ class SearchParser:
     def parse(self, q: str):
         try:
             return self._parse(q)
-        except ValueError:
+        except ValueError as e:
             return dict()
 
     def _parse(self, q: str):
@@ -39,17 +40,36 @@ class SearchParser:
         raise self.error
 
     def _remove_brackets(self, q: str):
-        if len(q) > 2 and q[0] == "(" and q[-1] == ")":
+        if re.fullmatch(r"\([^)]+\)", q):
             return self._parse(q[1:-1])
 
         raise ValueError("Not bracketed")
 
     def _parse_sep(self, sep: str):
+        brackets = dict()
+
+        def _escape_brackets(m):
+            id_ = uuid4().hex
+            brackets[id_] = m.group(0)
+            return id_
+
         def _parse_sep_inner(q: str):
+            q = re.sub(r"\([^)]+\)", _escape_brackets, q)
             tokens = q.split(sep)
+
+            for i, t in enumerate(tokens):
+                for k, v in brackets.items():
+                    tokens[i] = tokens[i].replace(k, v)
+
             if len(tokens) >= 2:
-                k = "$or" if sep == " OR " else "$and"
-                return {k: list(filter(lambda x: x, (self._parse(t) for t in tokens)))}
+                parsed_tokens = list(filter(lambda x: x, (self._parse(t) for t in tokens)))
+                if len(parsed_tokens) > 1:
+                    k = "$or" if sep == " OR " else "$and"
+                    return {k: parsed_tokens}
+                elif len(parsed_tokens) == 1:
+                    return parsed_tokens[0]
+                else:
+                    return dict()
 
             raise ValueError(f"Not separated by '{sep}'")
 
@@ -162,7 +182,8 @@ class SearchParser:
 
 def mongo_filter(cond: Union[str, dict]) -> Callable[[dict], bool]:
     if isinstance(cond, str):
-        return mongo_filter(SearchParser().parse(cond))
+        cond = SearchParser().parse(cond)
+        return mongo_filter(cond)
 
     def inner_filter(item: dict) -> bool:
         for k, v in cond.items():
