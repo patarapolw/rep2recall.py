@@ -1,11 +1,10 @@
 from flask import Blueprint, request, jsonify
 from datetime import datetime
 from typing import List
-import json
 
 from ..shared import Config
-from ..engine.search import mongo_filter, SearchParser, parse_timedelta
-from ..engine.quiz import get_next_review, srs_map, repeat_review
+from ..engine.search import SearchParser, parse_timedelta
+from ..engine.typing import ICondOptions, IParserResult
 
 api_quiz = Blueprint("quiz", __name__, url_prefix="/api/quiz")
 
@@ -40,12 +39,14 @@ def r_quiz_treeview():
                     "new": len([d for d in deck_items if not d.get("nextReview")]),
                     "leech": len([d for d in deck_items if d.get("srsLevel") == 0]),
                     "due": len([d for d in deck_items if d.get("nextReview") and
-                                datetime.fromisoformat(d.get("nextReview")) < now])
+                                datetime.fromisoformat(d["nextReview"]) < now])
                 }
             })
 
     db = Config.DB
-    all_items = tuple(filter(mongo_filter(request.json["q"]), db.get_all()))
+    all_items = db.parseCond(SearchParser().parse(request.json["q"]), ICondOptions(
+        fields=["deck", "nextReview", "srsLevel"]
+    )).data
     now = datetime.now()
 
     deck_list = sorted(set(d["deck"] for d in all_items))
@@ -69,7 +70,7 @@ def r_quiz_treeview():
 @api_quiz.route("/", methods=["POST"])
 def r_quiz_build():
     r = request.json
-    and_cond = [SearchParser().parse(r["q"])]
+    and_cond = [SearchParser().parse(r["q"]).cond]
 
     if r.get("deck"):
         and_cond.append({"$or": [
@@ -100,35 +101,15 @@ def r_quiz_build():
         ]})
 
     db = Config.DB
-    all_items = [c["id"] for c in filter(mongo_filter({"$and": and_cond}), db.get_all())]
+    all_items = db.parseCond(IParserResult(cond={"$and": and_cond}), ICondOptions(fields=["id"])).data
 
-    return jsonify({"ids": all_items})
+    return jsonify({"ids": [c["id"] for c in all_items]})
 
 
 @api_quiz.route("/render", methods=["POST"])
 def r_quiz_render():
     db = Config.DB
-    c = dict(db.conn.execute("""
-    SELECT
-        c.front AS front,
-        c.back AS back,
-        mnemonic,
-        t.front AS tFront,
-        t.back AS tBack,
-        css,
-        js,
-        n.data AS data
-    FROM card AS c
-    LEFT JOIN template AS t ON templateId = t.id
-    LEFT JOIN note AS n ON noteId = n.id
-    WHERE c.id = ?
-    """, (request.json["id"],)).fetchone())
-
-    data = dict()
-    if c.get("data"):
-        data = json.loads(c["data"])
-
-    c["data"] = data
+    c = db.render(request.json["id"])
 
     return jsonify(c)
 
@@ -137,45 +118,7 @@ def r_quiz_render():
 def r_quiz_right():
     card_id = request.json["id"]
     db = Config.DB
-
-    srs_level, stat = db.conn.execute("""
-    SELECT srsLevel, stat FROM card WHERE id = ?
-    """, (card_id,)).fetchone()
-
-    if stat is None:
-        stat = {
-            "rightStreak": 0,
-            "wrongStreak": 0
-        }
-    else:
-        stat = json.loads(stat)
-
-    stat["rightStreak"] += 1
-    stat["wrongStreak"] = 0
-
-    if srs_level is None:
-        srs_level = 0
-
-    srs_level += 1
-
-    if srs_level >= len(srs_map):
-        srs_level = len(srs_map) - 1
-
-    db.conn.execute("""
-    UPDATE card
-    SET
-        srsLevel = ?,
-        stat = ?,
-        nextReview = ?
-    WHERE id = ?
-    """, (
-        srs_level,
-        json.dumps(stat),
-        str(get_next_review(srs_level)),
-        card_id
-    ))
-
-    db.update(card_id)
+    db.markRight(card_id)
 
     return jsonify({"error": None})
 
@@ -184,44 +127,6 @@ def r_quiz_right():
 def r_quiz_wrong():
     card_id = request.json["id"]
     db = Config.DB
-
-    srs_level, stat = db.conn.execute("""
-        SELECT srsLevel, stat FROM card WHERE id = ?
-        """, (card_id,)).fetchone()
-
-    if stat is None:
-        stat = {
-            "rightStreak": 0,
-            "wrongStreak": 0
-        }
-    else:
-        stat = json.loads(stat)
-
-    stat["rightStreak"] = 0
-    stat["wrongStreak"] += 1
-
-    if srs_level is None:
-        srs_level = 1
-
-    srs_level -= 1
-
-    if srs_level < 0:
-        srs_level = 0
-
-    db.conn.execute("""
-        UPDATE card
-        SET
-            srsLevel = ?,
-            stat = ?,
-            nextReview = ?
-        WHERE id = ?
-        """, (
-        srs_level,
-        json.dumps(stat),
-        str(repeat_review()),
-        card_id
-    ))
-
-    db.update(card_id)
+    db.markWrong(card_id)
 
     return jsonify({"error": None})

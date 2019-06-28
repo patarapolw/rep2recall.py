@@ -5,6 +5,8 @@ import math
 import functools
 from uuid import uuid4
 
+from .typing import IParserResult, IEntry
+
 ANY_OF = {"template", "front", "mnemonic", "entry", "deck", "tag"}
 IS_DATE = {"created", "modified", "nextReview"}
 IS_STRING = {"template", "front", "back", "mnemonic", "deck", "tag", "entry"}
@@ -17,11 +19,16 @@ class SearchParser:
         self.sort_by = None
         self.desc = False
 
-    def parse(self, q: str):
+    def parse(self, q: str) -> IParserResult:
         try:
-            return self._parse(q)
-        except ValueError as e:
-            return dict()
+            return IParserResult(
+                cond=self._parse(q),
+                is_=self.is_,
+                sortBy=self.sort_by,
+                desc=self.desc
+            )
+        except ValueError:
+            return IParserResult(cond=dict())
 
     def _parse(self, q: str):
         for method in [
@@ -180,12 +187,12 @@ class SearchParser:
         raise ValueError("Not partial expression")
 
 
-def mongo_filter(cond: Union[str, dict]) -> Callable[[dict], bool]:
+def mongo_filter(cond: Union[str, dict]) -> Callable[[IEntry], bool]:
     if isinstance(cond, str):
-        cond = SearchParser().parse(cond)
+        cond = SearchParser().parse(cond).cond
         return mongo_filter(cond)
 
-    def inner_filter(item: dict) -> bool:
+    def inner_filter(item: IEntry) -> bool:
         for k, v in cond.items():
             if k[0] == "$":
                 if k == "$and":

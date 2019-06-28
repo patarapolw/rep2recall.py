@@ -1,10 +1,9 @@
 from flask import Blueprint, request, Response, jsonify
-import re
 from random import shuffle
 
 from ..shared import Config
 from ..engine.search import mongo_filter, sorter, SearchParser
-from ..engine.util import anki_mustache
+from ..engine.util import ankiMustache
 
 api_editor = Blueprint("editor", __name__, url_prefix="/api/editor")
 
@@ -17,7 +16,12 @@ def r_editor():
     if request.method == "POST":
         parser = SearchParser()
 
-        cond = r.get("cond", parser.parse(r["q"]))
+        cond = r.get("cond")
+        if cond is None:
+            cond = parser.parse(r["q"]).cond
+        if cond is None:
+            cond = dict()
+
         sort_by = parser.sort_by
         desc = parser.desc
         is_ = parser.is_
@@ -29,10 +33,12 @@ def r_editor():
             desc = r.get("desc", False)
 
         if is_ == "duplicate":
+            sort_by = "front"
+
             counter = dict()
-            for data in db.get_all():
+            for data in db.getAll():
                 if data.get("tFront"):
-                    counter.setdefault(anki_mustache(data["tFront"], data.get("data", dict())), []).append(data)
+                    counter.setdefault(ankiMustache(data["tFront"], data.get("data", dict())), []).append(data)
                 else:
                     counter.setdefault(data["front"], []).append(data)
 
@@ -43,13 +49,13 @@ def r_editor():
         elif is_ == "distinct":
             distinct_set = set()
             all_data = []
-            for data in db.get_all():
+            for data in db.getAll():
                 key = data.get("key", data["front"])
                 if key not in distinct_set:
                     all_data.append(data)
                     distinct_set.add(key)
         else:
-            all_data = db.get_all()
+            all_data = db.getAll()
 
         if is_ == "distinct":
             sort_by = "random"

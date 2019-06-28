@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-srs_map = (
+srsMap = (
     timedelta(hours=4),
     timedelta(hours=8),
     timedelta(days=1),
@@ -12,14 +12,12 @@ srs_map = (
 )
 
 
-def get_next_review(srs_level: int) -> datetime:
-    next_review = datetime.now()
-
+def getNextReview(srs_level: int) -> datetime:
     try:
-        return next_review + srs_map[srs_level]
+        return srsMap[srs_level] + datetime.now()
     except IndexError:
-        return next_review + timedelta(minutes=10)
+        return repeatReview()
 
 
-def repeat_review() -> datetime:
+def repeatReview() -> datetime:
     return datetime.now() + timedelta(minutes=10)

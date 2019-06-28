@@ -8,7 +8,9 @@ import json
 from datetime import datetime
 from pathlib import Path
 import re
-from .util import anki_mustache
+
+from .util import ankiMustache
+from .typing import IEntry, IDataSocket
 
 from .db import Db
 
@@ -203,13 +205,13 @@ class Anki:
             ks = n["keys"].split("\x1f")
             data = []
             for i_k, k in enumerate(ks):
-                data.append({
-                    "key": k,
-                    "value": vs[i_k]
-                })
+                data.append(IDataSocket(
+                    key=k,
+                    value=vs[i_k]
+                ))
 
-            front = anki_mustache(n["qfmt"], data)
-            if front == anki_mustache(n["qfmt"]):
+            front = ankiMustache(n["qfmt"], data)
+            if front == ankiMustache(n["qfmt"]):
                 continue
 
             front = "@md5\n" + hashlib.md5(front.encode()).hexdigest()
@@ -217,23 +219,20 @@ class Anki:
                 continue
 
             front_set.add(front)
-            back = anki_mustache(n["afmt"], data, front)
+            back = ankiMustache(n["afmt"], data, front)
             back = "@md5\n" + hashlib.md5(back.encode()).hexdigest()
 
-            db.insert_many([{
-                "deck": n["deck"].replace("::", "/"),
-                "model": n["mname"],
-                "template": n["tname"],
-                "key": f"{self.filename}/{n['mname']}/{vs[0]}",
-                "data": data,
-                "front": front,
-                "back": back,
-                "tag": [x for x in n["tags"].split(" ") if x],
-                "sourceId": source_id,
-                "tData": {
-                    "sequence": ks
-                }
-            }])
+            db.insertMany([IEntry(
+                deck=n["deck"].replace("::", "/"),
+                model=n["mname"],
+                template=n["tname"],
+                key=f"{self.filename}/{n['mname']}/{vs[0]}",
+                data=data,
+                front=front,
+                back=back,
+                tag=[x for x in n["tags"].split(" ") if x],
+                sH=source_h
+            )])
 
     @staticmethod
     def _convert_link(s: str, media_name_to_id: dict) -> str:

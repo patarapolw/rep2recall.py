@@ -1,9 +1,14 @@
 import sqlite3
-from typing import List, Iterable, Optional
+from typing import List, Iterable, Optional, Union
 import json
 from datetime import datetime
 import hashlib
-from .util import anki_mustache
+from easydict import EasyDict
+
+from .typing import IEntry, IStat, IStreak, ICondOptions, IParserResult, IPagedOutput
+from .util import ankiMustache
+from .quiz import srsMap, getNextReview, repeatReview
+from .search import mongo_filter, sorter
 
 
 class Db:
@@ -79,107 +84,100 @@ class Db:
         except sqlite3.Error:
             pass
 
-    def insert_many(self, entries: List[dict]) -> List[int]:
-        entries = list(map(lambda u: self.transform_create_or_update(None, u), entries))
+    def insertMany(self, entries: List[IEntry]) -> List[int]:
+        entries = [IEntry(**self.transformCreateOrUpdate(None, u)) for u in entries]
 
-        decks = list(set(map(lambda x: x["deck"], entries)))
-        deck_ids = list(map(self.get_or_create_deck, decks))
+        deckNameToId = dict()
+        for deck in set(e.deck for e in entries):
+            deckNameToId[deck] = self.getOrCreateDeck(deck)
 
-        source_id = None
-        source_set = set()
-        for t in filter(lambda x: x.get("sourceH"), entries):
-            source_h = t.get("sourceH")
-            if source_h not in source_set:
+        sourceHToId = dict()
+        sourceSet = set()
+        for e in entries:
+            if e.sH and e.sH not in sourceSet:
                 self.conn.execute("""
                 INSERT INTO source (name, created, h)
                 VALUES (?, ?, ?)
                 ON CONFLICT DO NOTHING
-                """, (t["source"], t["sourceCreated"], source_h))
+                """, (e.source, e.sCreated, e.sH))
 
-                source_id = self.conn.execute("""
+                sourceHToId[e.sH] = self.conn.execute("""
                 SELECT id FROM source
                 WHERE h = ?
-                """, (source_h,)).fetchone()[0]
+                """, (e.sH,)).fetchone()[0]
 
-                source_set.add(source_h)
+                sourceSet.add(e.sH)
 
-        templates = []
-        for t in filter(lambda x: x.get("tFront"), entries):
-            source_id = t.get("sourceId", source_id)
-            templates.append(f"{t.get('template', 'template')}\x1f{t.get('model', 'model')}")
-
-            if t.get("tFront"):
-                self.conn.execute("""
-                INSERT INTO template (name, model, front, back, css, js, sourceId)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT DO NOTHING
-                """, (
-                    t.get("template"),
-                    t.get("model"),
-                    t["tFront"],
-                    t.get("tBack"),
-                    t.get("css"),
-                    t.get("js"),
-                    source_id
-                ))
-
-        templates = list(set(templates))
-        template_ids = []
-        for t in templates:
-            name, model = t.split("\x1f")
-            template_ids.append(self.conn.execute("""
-            SELECT id FROM template
-            WHERE
-                sourceId = ? AND
-                name = ? AND
-                model = ?
-            """, (source_id, name, model)).fetchone()[0])
-
-        note_ids = []
+        templateKeyToId = dict()
         for e in entries:
-            if e.get("data"):
+            if e.tFront and e.template and e.model:
+                if e.tFront:
+                    self.conn.execute("""
+                    INSERT INTO template (name, model, front, back, css, js, sourceId)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT DO NOTHING
+                    """, (
+                        e.template,
+                        e.model,
+                        e.tFront,
+                        e.tBack,
+                        e.css,
+                        e.js,
+                        sourceHToId.get(e.sH)
+                    ))
+
+                    templateKeyToId[f"{e.template}\x1f{e.model}"] = self.conn.execute("""
+                    SELECT id FROM template
+                    WHERE
+                        sourceId = ? AND
+                        name = ? AND
+                        model = ?
+                    """, (sourceHToId.get(e.sH), e.template, e.model)).fetchone()[0]
+
+        noteKeyToId = dict()
+        for e in entries:
+            if e.data and e.key:
                 try:
-                    note_id = self.conn.execute("""
+                    noteId = self.conn.execute("""
                     INSERT INTO note (sourceId, key, data)
                     VALUES (?, ?, ?)
                     """, (
-                        source_id,
-                        e.get("key"),
-                        json.dumps(e["data"], ensure_ascii=False)
+                        sourceHToId.get(e.sH),
+                        e.key,
+                        json.dumps(e.data, ensure_ascii=False)
                     )).lastrowid
                 except sqlite3.Error:
-                    note_id = self.conn.execute("""
+                    noteId = self.conn.execute("""
                     SELECT id FROM note
                     WHERE
                         sourceId = ? AND
                         key = ?
-                    """, (source_id, e.get("key"))).fetchone()[0]
-                note_ids.append(note_id)
-            else:
-                note_ids.append(None)
+                    """, (sourceHToId.get(e.sH), e.key)).fetchone()[0]
+
+                noteKeyToId[e.key] = noteId
 
         now = str(datetime.now())
-        card_ids = []
+        cardIds = []
         for i, e in enumerate(entries):
-            card_id = int(self.conn.execute("""
+            cardId = int(self.conn.execute("""
             INSERT INTO card
-            (front, back, mnemonic, nextReview, deckId, noteId, templateId, created, srsLevel)
+            (front, back, mnemonic, nextReview, deckId, noteId, templateId, created, srsLevel, stat)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                e["front"],
-                e.get("back"),
-                e.get("mnemonic"),
-                e.get("nextReview"),
-                deck_ids[decks.index(e["deck"])],
-                note_ids[i],
-                template_ids[templates.index(f"{e['template']}\x1f{e['model']}")]
-                if e.get("model") and e.get("template") else None,
+                e.front,
+                e.back,
+                e.mnemonic,
+                e.nextReview,
+                deckNameToId.get(e.deck),
+                noteKeyToId.get(e.key),
+                templateKeyToId.get(f"{e.template}\x1f{e.model}"),
                 now,
-                e.get("srsLevel")
+                e.srsLevel,
+                json.dumps(e.stat, ensure_ascii=False)
             )).lastrowid)
 
-            if e.get("tag"):
-                for t in e["tag"]:
+            if e.tag:
+                for t in e.tag:
                     self.conn.execute("""
                     INSERT INTO tag (name)
                     VALUES (?)
@@ -193,15 +191,15 @@ class Db:
                         (SELECT id FROM tag WHERE name = ?)
                     )
                     ON CONFLICT DO NOTHING
-                    """, (card_id, t))
+                    """, (cardId, t))
 
-            card_ids.append(card_id)
+            cardIds.append(cardId)
 
         self.conn.commit()
 
-        return card_ids
+        return cardIds
 
-    def get_all(self) -> List[dict]:
+    def getAll(self) -> List[dict]:
         c = self.conn.execute("""
         SELECT
             c.id AS id,
@@ -242,13 +240,13 @@ class Db:
             INNER JOIN cardTag AS ct ON ct.tagId = tag.id
             WHERE ct.cardId = ?
             """, (item["id"],))]
-            item["data"] = json.loads(item["data"] if item["data"] else "[]")
-            item["stat"] = json.loads(item["stat"] if item["stat"] else "{}")
+            item["data"] = json.loads(item["data"] if item["data"] else "null")
+            item["stat"] = json.loads(item["stat"] if item["stat"] else "null")
             items.append(item)
 
         return items
 
-    def get_or_create_deck(self, name: str) -> int:
+    def getOrCreateDeck(self, name: str) -> int:
         self.conn.execute("""
         INSERT INTO deck (name)
         VALUES (?)
@@ -260,7 +258,7 @@ class Db:
         WHERE name = ?
         """, (name,)).fetchone()[0]
 
-    def transform_create_or_update(self, c_id: Optional[int] = None, u: dict = None) -> dict:
+    def transformCreateOrUpdate(self, cId: Optional[int] = None, u: Union[dict, IEntry] = None) -> dict:
         if u is None:
             u = dict()
 
@@ -269,54 +267,57 @@ class Db:
 
         if u.get("front", "").startswith("@template\n"):
             if data is None:
-                if c_id is not None:
-                    data = self.get_data(c_id)
+                if cId is not None:
+                    data = self.getData(cId)
                 else:
-                    data = u.get("data", dict())
+                    data = u.get("data", list())
             u["tFront"] = u.pop("front")[len("@template\n"):]
 
         if u.get("tFront"):
-            front = anki_mustache(u["tFront"], data)
+            front = ankiMustache(u["tFront"], data)
             u["front"] = "@md5\n" + hashlib.md5(front.encode()).hexdigest()
 
         if u.get("back", "").startswith("@template\n"):
             u["tBack"] = u.pop("back")[len("@template\n"):]
             if front is None:
-                if c_id is not None:
-                    front = self.get_front(c_id)
+                if cId is not None:
+                    front = self.getFront(cId)
                 else:
                     front = ""
 
         if u.get("tBack"):
-            back = anki_mustache(u["tBack"], data, front)
+            back = ankiMustache(u["tBack"], data, front)
             u["back"] = "@md5\n" + hashlib.md5(back.encode()).hexdigest()
 
         return u
 
-    def update(self, c_id: int, u: dict = None, commit: bool = True):
+    def update(self, cId: int, u: dict = None, doCommit: bool = True):
         if u is None:
             u = dict()
 
-        u = self.transform_create_or_update(c_id, u)
+        u = self.transformCreateOrUpdate(cId, u)
         u["modified"] = str(datetime.now())
 
         for k, v in u.items():
             if k == "deck":
-                deck_id = self.get_or_create_deck(v)
+                deckId = self.getOrCreateDeck(v)
                 self.conn.execute("""
                 UPDATE card
                 SET deckId = ?
                 WHERE id = ?
-                """, (deck_id, c_id))
+                """, (deckId, cId))
             elif k in {
                 "nextReview", "created", "modified",
                 "front", "back", "mnemonic", "srsLevel"
             }:
+                if not isinstance(v, (str, int, float)):
+                    v = str(v)
+
                 self.conn.execute(f"""
                 UPDATE card
                 SET {k} = ?
                 WHERE id = ?
-                """, (v, c_id))
+                """, (v, cId))
             elif k in {"css", "js"}:
                 self.conn.execute(f"""
                 UPDATE template
@@ -324,7 +325,7 @@ class Db:
                 WHERE template.id = (
                     SELECT templateId FROM card WHERE card.id = ?
                 )
-                """, (v, c_id))
+                """, (v, cId))
             elif k in {"tFront", "tBack"}:
                 self.conn.execute(f"""
                 UPDATE template
@@ -332,32 +333,37 @@ class Db:
                 WHERE template.id = (
                     SELECT templateId FROM card WHERE card.id = ?
                 )
-                """, (v, c_id))
+                """, (v, cId))
             elif k == "tag":
-                prev_tags = self.get_tags(c_id)
-                self.edit_tags([c_id], set(v) - prev_tags, True, False)
-                self.edit_tags([c_id], prev_tags - set(v), False, False)
+                prevTags = self.getTags(cId)
+                self.addTags(cId, [t for t in v if t not in prevTags], False, prevTags)
+                self.removeTags(cId, [t for t in prevTags if t not in v], False, prevTags)
+            elif k == "stat":
+                v = json.dumps(v, ensure_ascii=False)
+                self.conn.execute(f"""
+                UPDATE card
+                SET stat = ?
+                WHERE id = ?
+                """, (v, cId))
             elif k == "data":
-                data = self.get_data(c_id)
+                data = self.getData(cId)
 
                 for vn in v:
-                    assert isinstance(vn, dict)
-
-                    is_new = True
+                    isNew = True
                     for i, d in enumerate(data):
                         if d["key"] == vn["key"]:
                             data[i]["value"] = vn["value"]
-                            is_new = False
+                            isNew = False
                             break
 
-                    if is_new:
+                    if isNew:
                         data.append(vn)
 
                 if self.conn.execute("""
                 SELECT noteId FROM card WHERE card.id = ?
-                """, (c_id,)).fetchone() is None:
+                """, (cId,)).fetchone() is None:
 
-                    note_id = self.conn.execute("""
+                    noteId = self.conn.execute("""
                     INSERT INTO note (data)
                     VALUES (?)
                     """, (json.dumps(data, ensure_ascii=False)))
@@ -366,7 +372,7 @@ class Db:
                     UPDATE card
                     SET noteId = ?
                     WHERE id = ?
-                    """, (note_id, c_id))
+                    """, (noteId, cId))
                 else:
                     self.conn.execute("""
                     UPDATE note
@@ -374,103 +380,221 @@ class Db:
                     WHERE note.id = (
                         SELECT noteId FROM card WHERE card.id = ?
                     )
-                    """, (json.dumps(data, ensure_ascii=False), c_id))
+                    """, (json.dumps(data, ensure_ascii=False), cId))
 
-        if commit:
+        if doCommit:
             self.conn.commit()
 
-    def update_many(self, c_ids: List[int], u: dict = None):
+    def updateMany(self, cIds: List[int], u: dict = None):
         if u is None:
             u = dict()
 
-        for c_id in c_ids:
-            self.update(c_id, u, False)
+        for cId in cIds:
+            self.update(cId, u, False)
 
         self.conn.commit()
 
-    def get_front(self, c_id: int) -> str:
+    def getFront(self, cId: int) -> str:
         front = self.conn.execute("""
         SELECT front FROM card WHERE id = ?
-        """, (c_id,)).fetchone()[0]
+        """, (cId,)).fetchone()[0]
 
         if front.startswith("@md5\n"):
-            t_front, data = self.conn.execute("""
+            tFront, data = self.conn.execute("""
             SELECT t.front, data
             FROM card AS c
             LEFT JOIN template AS t ON t.id = templateId
             LEFT JOIN note AS n ON n.id = noteId
             WHERE c.id = ?
-            """, (c_id,)).fetchone()
+            """, (cId,)).fetchone()
 
-            if t_front and data:
+            if tFront and data:
                 data = json.loads(data)
-                front = anki_mustache(t_front, data)
+                front = ankiMustache(tFront, data)
 
         return front
 
-    def get_data(self, c_id: int) -> List[dict]:
+    def getData(self, cId: int) -> List[dict]:
         return json.loads(self.conn.execute("""
         SELECT data FROM note
         WHERE note.id = (SELECT noteId FROM card WHERE card.id = ?)
-        """, (c_id,)).fetchone()[0])
+        """, (cId,)).fetchone()[0])
 
-    def delete(self, c_id: int):
+    def delete(self, cId: int):
         self.conn.execute("""
         DELETE FROM card
         WHERE id = ?
-        """, (c_id,))
+        """, (cId,))
         self.conn.commit()
 
-    def delete_many(self, c_ids: List[int]):
+    def deleteMany(self, cIds: List[int]):
         self.conn.execute(f"""
         DELETE FROM card
-        WHERE id IN ({",".join(["?"] * len(c_ids))})
-        """, c_ids)
+        WHERE id IN ({",".join(["?"] * len(cIds))})
+        """, cIds)
         self.conn.commit()
 
-    def get_tags(self, c_id):
+    def getTags(self, cId: int):
         return set(c[0] for c in self.conn.execute("""
         SELECT name
         FROM tag AS t
         INNER JOIN cardTag AS ct ON ct.tagId = t.id
         INNER JOIN card AS c ON ct.cardId = c.id
         WHERE c.id = ?
-        """, (c_id,)))
+        """, (cId,)))
 
-    def edit_tags(self, c_ids: List[int], tags: Iterable[str], is_add: bool, commit: bool = True):
-        for c_id in c_ids:
-            prev_tags = self.get_tags(c_id)
+    def addTags(self, cId: int, tags: Iterable[str], doCommit: bool = True, prevTags: Iterable[str] = None):
+        if prevTags is None:
+            prevTags = []
 
-            if is_add:
-                updated_tags = set(tags) - prev_tags
+        for t in tags:
+            if t not in prevTags:
+                self.conn.execute("""
+                INSERT INTO tag (name)
+                VALUES (?)
+                ON CONFLICT DO NOTHING
+                """, (t,))
 
-                for t in sorted(updated_tags):
-                    self.conn.execute("""
-                    INSERT INTO tag (name)
-                    VALUES (?)
-                    ON CONFLICT DO NOTHING
-                    """, (t,))
+                self.conn.execute("""
+                INSERT INTO cardTag (cardId, tagId)
+                VALUES (
+                    ?,
+                    (SELECT tag.id FROM tag WHERE tag.name = ?)
+                )
+                ON CONFLICT DO NOTHING
+                """, (cId, t))
 
-                    self.conn.execute("""
-                    INSERT INTO cardTag (cardId, tagId)
-                    VALUES (
-                        ?,
-                        (SELECT tag.id FROM tag WHERE tag.name = ?)
-                    )
-                    ON CONFLICT DO NOTHING
-                    """, (c_id, t))
-            else:
-                updated_tags = prev_tags - set(tags)
+        self.update(cId, None, False)
 
-                for t in sorted(updated_tags):
-                    self.conn.execute("""
-                    DELETE FROM cardTag
-                    WHERE
-                        cardId = ? AND
-                        tagId = (SELECT id FROM tag WHERE name = ?)
-                    """, (c_id, t))
-
-            self.update(c_id, None, False)
-
-        if commit:
+        if doCommit:
             self.conn.commit()
+
+    def removeTags(self, cId: int, tags: Iterable[str], doCommit: bool = True, prevTags: Iterable[str] = None):
+        if prevTags is None:
+            prevTags = []
+
+        for t in prevTags:
+            if t in tags:
+                self.conn.execute("""
+                DELETE FROM cardTag
+                WHERE
+                    cardId = ? AND
+                    tagId = (SELECT id FROM tag WHERE name = ?)
+                """, (cId, t))
+
+        self.update(cId, None, False)
+
+        if doCommit:
+            self.conn.commit()
+
+    def parseCond(self, cond: IParserResult, options: ICondOptions = None) -> IPagedOutput:
+        def _filter_fields(entry: dict) -> dict:
+            if options.fields is None:
+                return entry
+
+            output = dict()
+            for k, v in entry.items():
+                if k in options.fields:
+                    output[k] = v
+
+            return output
+
+        sortBy = None
+        if cond.sortBy:
+            sortBy = cond.sortBy
+        elif options.sortBy:
+            sortBy = options.sortBy
+
+        if sortBy:
+            if cond.desc is not None:
+                desc = cond.desc
+            else:
+                desc = options.desc
+
+            sortKey = sorter(sortBy, desc)
+        else:
+            sortKey = None
+
+        allCards = sorted((c for c in self.getAll() if mongo_filter(cond.cond)(c)), key=sortKey)
+        if options.limit:
+            endPoint = options.offset + options.limit
+        else:
+            endPoint = None
+
+        return IPagedOutput(
+            data=[_filter_fields(c) for c in allCards[options.offset: endPoint]],
+            count=len(allCards)
+        )
+
+    def render(self, cardId: int) -> dict:
+        c = dict(self.conn.execute("""
+        SELECT
+            c.front AS front,
+            c.back AS back,
+            mnemonic,
+            t.name AS template,
+            t.model AS model,
+            t.front AS tFront,
+            t.back AS tBack,
+            css,
+            js,
+            n.data AS data
+        FROM card AS c
+        LEFT JOIN template AS t ON t.id = templateId
+        LEFT JOIN note AS n ON n.id = noteId
+        WHERE c.id = ?
+        """, (cardId,)).fetchone())
+
+        c["data"] = json.loads(c["data"] if c["data"] else "null")
+
+        if c["front"].startswith("@md5\n"):
+            c["front"] = ankiMustache(c.get("tFront", ""), c.get("data", list()))
+
+        if c.get("back", "").startswith("@md5\n"):
+            c["back"] = ankiMustache(c.get("tBack", ""), c.get("data", list()), c["front"])
+
+        return c
+
+    def markRight(self, cardId: int):
+        return self._updateCard(+1, cardId)
+
+    def markWrong(self, cardId: int):
+        return self._updateCard(-1, cardId)
+
+    def _updateCard(self, dSrsLevel: int, cardId: int):
+        srsLevel, stat = self.conn.execute("""
+        SELECT srsLevel, stat FROM card WHERE id = ?""", (cardId,)).fetchone()
+
+        if stat is None:
+            stat = IStat(
+                streak=IStreak(right=0, wrong=0)
+            )
+        else:
+            stat = EasyDict(**json.loads(stat))
+
+        if srsLevel is None:
+            srsLevel = 0
+
+        if dSrsLevel > 0:
+            stat.streak.right += 1
+        elif dSrsLevel < 0:
+            stat.streak.wrong += 1
+
+        srsLevel += dSrsLevel
+
+        if srsLevel >= len(srsMap):
+            srsLevel = len(srsMap) - 1
+
+        if srsLevel < 0:
+            srsLevel = 0
+
+        if dSrsLevel > 0:
+            nextReview = getNextReview(srsLevel)
+        else:
+            nextReview = repeatReview()
+
+        self.update(cardId, {
+            "srsLevel": srsLevel,
+            "stat": stat,
+            "nextReview": nextReview
+        })
