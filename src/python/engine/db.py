@@ -158,7 +158,7 @@ class Db:
 
         now = str(datetime.now())
         cardIds = []
-        for i, e in enumerate(entries):
+        for e in entries:
             cardId = int(self.conn.execute("""
             INSERT INTO card
             (front, back, mnemonic, nextReview, deckId, noteId, templateId, created, srsLevel, stat)
@@ -576,9 +576,9 @@ class Db:
             srsLevel = 0
 
         if dSrsLevel > 0:
-            stat.streak.right += 1
+            stat["streak"]["right"] = stat.setdefault("streak", dict()).setdefault("right", 0) + 1
         elif dSrsLevel < 0:
-            stat.streak.wrong += 1
+            stat["streak"]["wrong"] = stat.setdefault("streak", dict()).setdefault("wrong", 0) + 1
 
         srsLevel += dSrsLevel
 

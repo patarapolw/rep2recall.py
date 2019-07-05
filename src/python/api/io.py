@@ -35,7 +35,7 @@ def r_import_progress(msg):
             anki.export(Config.DB)
         elif msg["type"] == ".r2r":
             import_db = Db(str(Config.UPLOAD_FOLDER.joinpath(msg["id"])))
-            Config.DB.insert_many(import_db.getAll())
+            Config.DB.insertMany(import_db.getAll())
         else:
             raise ValueError(f"Invalid file type {msg['type']}")
 
@@ -66,7 +66,7 @@ def r_export():
     new_file.insertMany(list(map(_clean_deck, filter(mongo_filter({"$or": [
         {"deck": deck},
         {"deck": {"$startswith": f"{deck}/"}}
-    ]}), db.get_all()))))
+    ]}), db.getAll()))))
 
     new_file.close()
 

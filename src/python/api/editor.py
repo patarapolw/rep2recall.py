@@ -43,7 +43,7 @@ def r_editor():
                     counter.setdefault(data["front"], []).append(data)
 
             all_data = []
-            for k, v in counter.items():
+            for v in counter.values():
                 if len(v) > 1:
                     all_data.extend(v)
         elif is_ == "distinct":
@@ -77,19 +77,19 @@ def r_editor():
     elif request.method == "PUT":
         if r.get("create"):
             if isinstance(r["create"], list):
-                c_ids = db.insert_many(r["create"])
+                c_ids = db.insertMany(r["create"])
                 return jsonify({
                     "ids": c_ids
                 })
             else:
-                c_id = db.insert_many([r["create"]])[0]
+                c_id = db.insertMany([r["create"]])[0]
                 return jsonify({
                     "id": c_id
                 })
 
         if r.get("update"):
             if r.get("ids"):
-                db.update_many(r["ids"], r["update"])
+                db.updateMany(r["ids"], r["update"])
             else:
                 db.update(r["id"], r["update"])
 
@@ -97,7 +97,7 @@ def r_editor():
 
     elif request.method == "DELETE":
         if r.get("ids"):
-            db.delete_many(r["ids"])
+            db.deleteMany(r["ids"])
         else:
             db.delete(r["id"])
 
@@ -106,9 +106,17 @@ def r_editor():
     return Response(status=404)
 
 
-@api_editor.route("/editTags", methods=["PUT"])
-def r_editor_edit_tags():
+@api_editor.route("/addTags", methods=["PUT"])
+def r_editor_add_tags():
     d = request.json
-    Config.DB.edit_tags(d["ids"], d["tags"], d["isAdd"])
+    Config.DB.addTags(d["ids"], d["tags"])
+
+    return jsonify({"error": None})
+
+
+@api_editor.route("/removeTags", methods=["DELETE"])
+def r_editor_remove_tags():
+    d = request.json
+    Config.DB.removeTags(d["ids"], d["tags"])
 
     return jsonify({"error": None})
