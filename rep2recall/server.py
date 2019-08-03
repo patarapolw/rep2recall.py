@@ -1,9 +1,9 @@
 from flask import Flask, jsonify, redirect
 from flask_socketio import SocketIO
 from flask_cors import CORS
-from send2trash import send2trash
 import sqlite3
 import traceback
+import os
 
 # https://github.com/miguelgrinberg/python-socketio/issues/35#issuecomment-482350874
 from engineio.async_drivers import gevent
@@ -14,8 +14,8 @@ from .api.editor import api_editor
 from .api.io import api_io, r_import_progress
 from .api.media import api_media
 
-app = Flask(__name__, static_folder=resource_path("public"), static_url_path="")
-socketio = SocketIO(app, logger=True, engineio_logger=True)
+app = Flask(__name__, static_folder=resource_path("www"), static_url_path="")
+io = SocketIO(app, logger=True, engineio_logger=True)
 CORS(app)
 
 app.register_blueprint(api_quiz)
@@ -32,7 +32,7 @@ def r_index():
 @app.route("/api/reset", methods=["DELETE"])
 def r_reset():
     Config.DB.close()
-    send2trash(Config.COLLECTION)
+    os.unlink(Config.COLLECTION)
     return jsonify({"error": None}), 201
 
 
@@ -42,10 +42,10 @@ def r_sqlite_error(e):
     return jsonify({"error": str(e)}), 500
 
 
-@socketio.on("message")
+@io.on("message")
 def io_anki_progress(message):
     r_import_progress(message)
 
 
 def run_server():
-    socketio.run(app, port=Config.PORT, log_output=True)
+    io.run(app, port=Config.PORT, log_output=True)

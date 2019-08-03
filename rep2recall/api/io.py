@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, request, jsonify, send_file, g
 from flask_socketio import send
 from uuid import uuid4
 from werkzeug.utils import secure_filename

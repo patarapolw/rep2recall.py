@@ -1,18 +1,20 @@
-import { app, BrowserWindow, Menu, MenuItemConstructorOptions, shell } from "electron";
-import path from "path";
-import { spawn } from "child_process";
-import { ipcMain } from "electron";
-import waitOn from "wait-on";
+const { app, BrowserWindow, Menu, shell } = require("electron");
+const path = require("path");
+const { spawn } = require("child_process");
+const waitOn = require("wait-on");
+const isAsar = require("electron-is-running-in-asar");
+const getPort = require("get-port");
+const dotenv = require("dotenv");
 
-const ROOT_PATH = path.join(
-    process.versions["electron"] ? __dirname.replace("app.asar", "app.asar.unpacked") : __dirname,
-    ".."
-);
-process.env.ROOT_PATH = ROOT_PATH;
+dotenv.config();
 
-let serverProcess = spawnServer();
-let mainWindow: Electron.BrowserWindow | null;
-const PORT = process.env.PORT || "34972";
+let serverProcess;
+let mainWindow;
+let PORT = {
+    server: process.env.PORT || 24000
+};
+
+process.env.ROOT_PATH = path.resolve(isAsar() ? __dirname.replace("app.asar", "app.asar.unpacked") : __dirname, "..");
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -24,13 +26,13 @@ function createWindow() {
     });
     mainWindow.maximize();
 
-    mainWindow.loadFile(path.join(ROOT_PATH, "public/index.html"));
-    waitOn({resources: [`http://localhost:${PORT}`]}).then(() => {
-        mainWindow!.loadURL(`http://localhost:${PORT}`);
+    mainWindow.loadFile(path.join(__dirname, "loading.html"));
+    waitOn({resources: [`http://localhost:${PORT.server}`]}).then(() => {
+        mainWindow.loadURL(`http://localhost:${PORT.server}`);
     });
     // mainWindow.webContents.openDevTools();
 
-    const openExternalLinksInOSBrowser = (event: any, url: string) => {
+    const openExternalLinksInOSBrowser = (event, url) => {
         if (url.indexOf("localhost") === -1) {
             event.preventDefault();
             shell.openExternal(url);
@@ -48,7 +50,7 @@ function createWindow() {
 app.on("ready", () => {
     createWindow();
 
-    const template: MenuItemConstructorOptions[] = [
+    const template = [
         {
             label: "Application",
             submenu: [
@@ -66,14 +68,14 @@ app.on("ready", () => {
                 { label: "Cut", accelerator: "CmdOrCtrl+X", role: "cut" },
                 { label: "Copy", accelerator: "CmdOrCtrl+C", role: "copy" },
                 { label: "Paste", accelerator: "CmdOrCtrl+V", role: "paste" },
-                // { label: "Select All", accelerator: "CmdOrCtrl+A", role: "selectAll" }
+                { label: "Select All", accelerator: "CmdOrCtrl+A", role: "selectAll" }
             ]
         },
         {
             label: "Settings",
             submenu: [
                 { label: "Preferences", click() {
-                    mainWindow!.webContents.send("on-menu-pref");
+                    mainWindow.webContents.send("on-menu-pref");
                 } }
             ]
         }
@@ -89,19 +91,20 @@ app.on("window-all-closed", () => {
     // }
 });
 
-ipcMain.on("restart-server", () => {
-    serverProcess.kill();
-    serverProcess = spawnServer();
-});
+(async () => {
+    PORT = {
+        server: process.env.PORT || await getPort({port: 24000})
+    }
 
-function spawnServer() {
-    const s = spawn(path.join(
-        process.versions["electron"] ? __dirname.replace("app.asar", "app.asar.unpacked") : __dirname,
-        "./pyserver"),
+    process.env.PORT = PORT.server;
+
+    serverProcess = spawn(
+        path.join(
+            process.env.ROOT_PATH,
+            "dist/pyserver"),
         {env: process.env}
     );
-    s.stdout.pipe(process.stdout);
-    s.stderr.pipe(process.stderr);
 
-    return s;
-}
+    serverProcess.stdout.pipe(process.stdout);
+    serverProcess.stderr.pipe(process.stderr);
+})();

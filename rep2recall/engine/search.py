@@ -5,7 +5,7 @@ import math
 import functools
 from uuid import uuid4
 
-from .typing import IParserResult, IEntry
+from .typing import IParserResult
 
 ANY_OF = {"template", "front", "mnemonic", "entry", "deck", "tag"}
 IS_DATE = {"created", "modified", "nextReview"}
@@ -187,12 +187,12 @@ class SearchParser:
         raise ValueError("Not partial expression")
 
 
-def mongo_filter(cond: Union[str, dict]) -> Callable[[IEntry], bool]:
+def mongo_filter(cond: Union[str, dict]) -> Callable[[dict], bool]:
     if isinstance(cond, str):
         cond = SearchParser().parse(cond).cond
         return mongo_filter(cond)
 
-    def inner_filter(item: IEntry) -> bool:
+    def inner_filter(item: dict) -> bool:
         for k, v in cond.items():
             if k[0] == "$":
                 if k == "$and":
@@ -311,11 +311,13 @@ def data_getter(d: dict, k: str) -> Union[str, None]:
 
     try:
         if k == "*":
+            # noinspection PyTypeChecker
             return [v0["value"] for v0 in d["data"] if not v0["value"].startswith("@nosearch\n")]
         else:
-            for v0 in d["data"]:
-                if v0["key"].lower() == k:
-                    return v0["value"]
+            if d["data"]:
+                for v0 in d["data"]:
+                    if v0["key"].lower() == k:
+                        return v0["value"]
     except AttributeError:
         pass
 

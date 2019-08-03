@@ -13,14 +13,14 @@ except OSError:
 
 
 def resource_path(relative_path: str) -> str:
-    base_path = os.getenv("ROOT_PATH", str(Path(__file__).joinpath("../../..")))
+    base_path = os.getenv("ROOT_PATH", str(Path(__file__).joinpath("../..")))
     return str(Path(base_path).joinpath(relative_path).resolve())
 
 
 class Config:
-    PORT = int(os.getenv("PORT", "34972"))
+    PORT = int(os.getenv("PORT", "24000"))
 
-    COLLECTION = os.getenv("COLLECTION", os.path.join(appdirs.user_data_dir("rep2recall-sqlite"), "user.db"))
+    COLLECTION = os.getenv("COLLECTION", os.path.join(appdirs.user_data_dir("rep2recall-py"), "user.db"))
     Path(COLLECTION).parent.mkdir(parents=True, exist_ok=True)
 
     DIR = Path(COLLECTION).parent.resolve()

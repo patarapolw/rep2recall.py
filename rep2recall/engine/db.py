@@ -3,7 +3,7 @@ from typing import List, Iterable, Optional, Union
 import json
 from datetime import datetime
 import hashlib
-from easydict import EasyDict
+import dataclasses as dc
 
 from .typing import IEntry, IStat, IStreak, ICondOptions, IParserResult, IPagedOutput
 from .util import ankiMustache
@@ -162,7 +162,7 @@ class Db:
             cardId = int(self.conn.execute("""
             INSERT INTO card
             (front, back, mnemonic, nextReview, deckId, noteId, templateId, created, srsLevel, stat)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 e.front,
                 e.back,
@@ -173,7 +173,7 @@ class Db:
                 templateKeyToId.get(f"{e.template}\x1f{e.model}"),
                 now,
                 e.srsLevel,
-                json.dumps(e.stat, ensure_ascii=False)
+                json.dumps(dc.asdict(e.stat), ensure_ascii=False)
             )).lastrowid)
 
             if e.tag:
@@ -550,7 +550,7 @@ class Db:
         if c["front"].startswith("@md5\n"):
             c["front"] = ankiMustache(c.get("tFront", ""), c.get("data", list()))
 
-        if c.get("back", "").startswith("@md5\n"):
+        if c["back"] and c["back"].startswith("@md5\n"):
             c["back"] = ankiMustache(c.get("tBack", ""), c.get("data", list()), c["front"])
 
         return c

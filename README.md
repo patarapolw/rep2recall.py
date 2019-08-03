@@ -21,11 +21,15 @@ The API is accessible at `http://localhost:34972`. See [/docs/api.md](/docs/api.
 
 ## Development mode
 
-Rep2Recall can be run without Electron using either `yarn run dev` or (`yarn run js:dev` and `yarn run py:dev` in different terminals).
-
 Environmental variables can be set as following in `.env`
 
 ```
 PORT=34972
 COLLECTION=user.db
 ```
+
+Tested with NPM and Poetry on macOS. Run `poetry install` and `npm run dev`.
+
+## Build instruction
+
+Build <https://github.com/patarapolw/rep2recall.front> with `npm run build` and copy the output to `/www/`
