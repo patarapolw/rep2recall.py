@@ -32,4 +32,6 @@ Tested with NPM and Poetry on macOS. Run `poetry install` and `npm run dev`.
 
 ## Build instruction
 
-Build <https://github.com/patarapolw/rep2recall.front> with `npm run build` and copy the output to `/www/`
+- Build <https://github.com/patarapolw/rep2recall.front> with `npm run build` and copy the output to `/www/`
+- `npm run py:build`
+- `npm run build`
