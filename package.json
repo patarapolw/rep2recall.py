@@ -6,7 +6,7 @@
   "description": "Rep2Recall with Python",
   "license": "MIT",
   "dependencies": {
-    "dotenv": "^8.0.0",
+    "dotenv": "^8.2.0",
     "electron-is-running-in-asar": "^1.0.0",
     "get-port": "^5.0.0",
     "wait-on": "^3.3.0"
