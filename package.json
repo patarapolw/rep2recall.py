@@ -8,7 +8,7 @@
   "dependencies": {
     "dotenv": "^8.0.0",
     "electron-is-running-in-asar": "^1.0.0",
-    "get-port": "^5.0.0",
+    "get-port": "^5.1.1",
     "wait-on": "^3.3.0"
   },
   "devDependencies": {
