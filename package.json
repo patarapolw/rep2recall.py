@@ -13,7 +13,7 @@
   },
   "devDependencies": {
     "electron": "^6.0.0",
-    "electron-builder": "^21.2.0"
+    "electron-builder": "^23.6.0"
   },
   "build": {
     "appId": "io.github.patarapolw.rep2recall-py",
